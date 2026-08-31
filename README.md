@@ -1,97 +1,389 @@
-# Nomad Droid
+# Nomad Droid 使用指南
 
-Nomad Droid is an Android Nomad client that runs as a user-started foreground service. It embeds the Nomad client in a Go shared library and provides two built-in task drivers:
+Nomad Droid 将 Android 设备接入 Nomad 集群，并以内置任务驱动运行两类工作负载：
 
-- `android` delegates a small, fixed set of package and service operations to a Shizuku UserService running as `shell` (or `root` when that is how Shizuku was started);
-- `termux` executes non-privileged commands through Termux's public `RUN_COMMAND` service, under the Termux app UID.
+| 驱动 | 用途 | 执行身份 |
+| --- | --- | --- |
+| `android` | 安装 APK，以及检查、启动和停止指定的 Android Service | Shizuku 的 `shell` 或 `root` 用户 |
+| `termux` | 在 Termux 环境中执行普通命令 | Termux 应用用户 |
 
-The Shizuku privilege boundary still does **not** expose an arbitrary shell. Its broker accepts only:
+两类驱动相互独立。`termux` 驱动不会通过 Shizuku 执行命令；Shizuku Broker 也不接受任意 Shell，只提供 APK 和 Android Service 生命周期所需的固定操作。
 
-- verify and install an APK with `pm install`;
-- inspect an installed package;
-- inspect, start, and stop one declared Android service component;
-- force-stop one validated package.
+## 1. 使用前准备
 
-## Requirements
+### Android 设备
 
-- Android 12 or newer on an ARM64 device;
-- Shizuku installed, started, and authorized for Nomad Droid when using the `android` driver;
-- Termux `>= 0.109` when using the `termux` driver and collecting command results;
-- a reachable Nomad server RPC address such as `10.0.0.10:4647`;
-- for building: JDK 17 or newer, Android SDK 36, NDK `28.2.13676358`, and Go 1.26.
+- Android 12 或更高版本；
+- ARM64 架构；
+- 能够访问 Nomad Server 的 RPC 端口；
+- 使用 `android` 驱动时，安装并启动 Shizuku；
+- 使用 `termux` 驱动时，安装 Termux `0.109` 或更高版本。
 
-The basic client currently expects a non-TLS Nomad RPC endpoint. When Nomad ACLs require client introduction, enter a valid client introduction token in the app.
+只使用一种驱动时，只需配置对应的 Shizuku 或 Termux。
 
-## Build
+### Nomad Server
 
-Set `ANDROID_HOME` or `ANDROID_SDK_ROOT` to the Android SDK, then run:
+准备一个设备可访问的、未启用 TLS 的 Nomad RPC 地址，例如：
+
+```text
+10.0.0.10:4647
+```
+
+IPv6 地址必须写成：
+
+```text
+[2001:db8::10]:4647
+```
+
+除非 Nomad Server 就运行在手机上，否则不要填写 `127.0.0.1:4647`。请确认设备到该地址的 TCP `4647` 端口可达。
+
+如果 Nomad 集群要求客户端引入认证，还需要准备 Client Introduction Token。应用中的该字段不是执行 `nomad` CLI 时使用的普通 ACL Token。
+
+## 2. 构建并安装 APK
+
+构建环境要求：
+
+- JDK 17 或更高版本；
+- Android SDK 36；
+- Android NDK `28.2.13676358`；
+- Go 1.26。
+
+设置 `ANDROID_HOME` 或 `ANDROID_SDK_ROOT` 后，在项目根目录执行：
 
 ```sh
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-The Gradle build cross-compiles the Go library for Android ARM64 before packaging the APK. The debug APK is written to:
+构建过程会先将 Go 代码交叉编译为 Android ARM64 共享库，再将其打包进 APK。输出文件位于：
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Run
+通过 ADB 安装：
 
-1. Install the Nomad Droid APK and open it.
-2. For Android service workloads, install and start Shizuku, tap the Shizuku **Grant access** button, and connect the broker.
-3. For shell workloads, install Termux, set `allow-external-apps=true` in `~/.termux/termux.properties`, grant Nomad Droid the **Run commands in Termux environment** permission, and tap **Test setup**. The `termux` driver remains unhealthy until this test succeeds.
-4. In **Keep alive**, open **Battery settings** and grant the Doze exemption if this device must maintain Nomad heartbeats while idle. On devices with aggressive app policies, also exempt Termux through **Termux app settings**.
-5. Enter the Nomad server RPC address, node name, and datacenter. Add a client introduction token only if the cluster requires one.
-6. Tap **Start agent**. Keep the foreground notification enabled so Android can keep the client process visible to the operating system.
+```sh
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-After the node registers, schedule jobs with either built-in driver. See [`examples/android-service.nomad.hcl`](examples/android-service.nomad.hcl) and [`examples/termux-shell.nomad.hcl`](examples/termux-shell.nomad.hcl).
+安装完成后打开 **Nomad Droid**。首次启动时，请允许通知权限；前台服务会使用常驻通知显示运行状态。
 
-## Android workload contract
+## 3. 配置 Shizuku
 
-The target APK must declare the configured service as exported because the Shizuku shell process starts it. The service must also satisfy Android's foreground-service contract: call `startForeground(...)` promptly after launch, declare the matching foreground-service permission/type, and keep its own ongoing notification while running.
+本节仅用于 `android` 驱动。
 
-The driver configuration fields are:
+1. 安装 Shizuku，并按照 Shizuku 应用内的说明通过无线调试、ADB 或 Root 启动服务。
+2. 打开 Nomad Droid。
+3. 在 **Shizuku** 区域点击 **Grant access**。
+4. 在系统授权窗口中允许 Nomad Droid 使用 Shizuku。
+5. 点击 **Connect broker**。
 
-| Field | Required | Meaning |
+连接成功后，状态中应同时出现：
+
+```text
+permission=granted · broker=connected
+```
+
+状态还会显示 Shizuku 和 Broker 的实际 UID，便于确认任务以 `shell` 还是 `root` 身份执行。
+
+设备重启后，Nomad Droid 可以恢复 Nomad Client，但 Shizuku 本身也必须重新可用。在 Shizuku Binder 恢复前，节点可以重新连接，`android` 驱动会保持不健康状态。
+
+## 4. 配置 Termux Shell
+
+本节仅用于 `termux` 驱动。
+
+### 4.1 允许外部应用调用 Termux
+
+在 Termux 中编辑：
+
+```text
+~/.termux/termux.properties
+```
+
+确保文件中存在：
+
+```properties
+allow-external-apps=true
+```
+
+可以在 Termux 中检查：
+
+```sh
+grep '^allow-external-apps=' ~/.termux/termux.properties
+```
+
+预期输出：
+
+```text
+allow-external-apps=true
+```
+
+### 4.2 授予 RUN_COMMAND 权限
+
+1. 打开 Nomad Droid。
+2. 在 **Termux shell** 区域点击 **Grant access**。
+3. 允许 **Run commands in Termux environment** 权限。
+
+如果系统没有弹出权限窗口，请打开 Android 的应用详情页，进入 **Nomad Droid → 权限 → 其他权限**，手动允许该权限。也可以点击 **Termux app settings / install** 打开 Termux 的应用详情页或安装页面。
+
+### 4.3 测试配置
+
+点击 **Test setup**。测试完成后，状态中应出现：
+
+```text
+permission=granted · service=available · setup=ready
+```
+
+只有测试成功后，`termux` 驱动才会向 Nomad 报告为健康状态。
+
+## 5. 配置保活
+
+Nomad Client 需要持续保持 RPC 会话和心跳，不能依赖推送消息代替。因此，在启动 Agent 前完成以下设置：
+
+1. 在 **Keep alive** 区域点击 **Battery settings**。
+2. 允许 Nomad Droid 忽略电池优化。
+3. 如果使用 Termux，在厂商的电池或后台管理页面中同时将 Termux 设为不受限制。
+4. 保留 Nomad Droid 的前台服务通知。
+
+Agent 运行时，应用会：
+
+- 启动 `specialUse` 前台服务；
+- 持有 CPU Partial Wake Lock，使熄屏后的定时器和心跳仍可运行；
+- 使用 `START_STICKY` 请求系统在进程被回收后重建服务；
+- 持久化用户选择的运行状态；
+- 在设备启动完成或 APK 更新后恢复 Agent；
+- 在 Shizuku Binder 失效后清理旧连接，并在 Shizuku 可用时重新绑定。
+
+点击 **Stop** 会先关闭自动恢复，再停止 Agent。Android 的“强行停止”或部分厂商的“受限制”后台策略会阻止自动恢复；出现这种情况后，需要重新打开 Nomad Droid。
+
+Termux 运行在另一个应用进程中，Nomad Droid 持有的 Wake Lock 不能阻止系统或厂商策略回收 Termux。因此，运行 `termux` 任务时也要单独配置 Termux 的电池策略。
+
+## 6. 启动 Nomad Client
+
+在 **Nomad client** 区域填写：
+
+| 字段 | 填写方式 |
+| --- | --- |
+| **Nomad server RPC address** | `host:port` 或 `[IPv6]:port`，例如 `10.0.0.10:4647` |
+| **Node name** | 以字母或数字开头，可包含字母、数字、点、下划线和连字符，例如 `pixel-01` |
+| **Datacenter** | 可包含字母、数字、下划线和连字符；示例任务使用 `android` |
+| **Client introduction token** | 集群要求客户端引入认证时填写，否则留空 |
+
+点击 **Start agent**。启动成功后：
+
+- Agent 状态显示 `Running`；
+- **Last result** 显示启动结果；
+- 通知栏显示 Nomad Droid 正在运行；
+- **Keep alive** 状态显示 `restore=enabled`。
+
+运行期间修改输入框不会热加载配置。需要应用新配置时，先点击 **Stop**，再点击 **Start agent**。
+
+## 7. 在 Nomad Server 上确认节点
+
+在已配置 Nomad CLI 的机器上执行：
+
+```sh
+nomad node status
+```
+
+找到手机节点的 ID 后查看详情：
+
+```sh
+nomad node status -verbose <node-id>
+```
+
+预期结果：
+
+- 节点状态为 `ready`；
+- Node Class 为 `android`；
+- 节点属性包含 `nomad.droid.base = true`；
+- 已配置的 `android` 或 `termux` 驱动为健康状态。
+
+Nomad CLI 通常连接 Nomad HTTP API；Nomad Droid 输入框连接的是 Server RPC 地址。两者的地址和端口用途不同。
+
+## 8. 运行 Android Service 任务
+
+示例文件：[`examples/android-service.nomad.hcl`](examples/android-service.nomad.hcl)
+
+### 8.1 准备工作负载 APK
+
+目标 APK 中的 Service 必须满足以下条件：
+
+1. 在 Manifest 中声明为可导出，因为它由 Shizuku 的 `shell` 或 `root` 进程启动；
+2. 被启动后及时调用 `startForeground(...)`；
+3. 声明匹配的前台服务权限和类型；
+4. 运行期间显示自己的常驻通知。
+
+示例中的下载地址、包名、Service 类名和 SHA-256 都是占位符，不能直接运行。请修改以下配置：
+
+| 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `package` | yes | Android application ID, for example `com.example.worker` |
-| `service` | yes | Service class, for example `.NomadWorkService` |
-| `install` | no | Install the APK artifact before starting; defaults to `true` |
-| `apk_path` | when installing | APK path inside the Nomad allocation directory |
-| `sha256` | when installing | Expected lowercase SHA-256 digest |
-| `replace` | no | Pass `-r` to `pm install`; defaults to `true` |
+| `package` | 是 | Android Application ID，例如 `com.example.workload` |
+| `service` | 是 | Service 类名，例如 `.NomadWorkService` |
+| `install` | 否 | 启动前是否安装 APK，默认 `true` |
+| `apk_path` | 安装时 | APK 在 Nomad Allocation 目录内的路径 |
+| `sha256` | 安装时 | APK 的小写 SHA-256 摘要 |
+| `replace` | 否 | 安装时是否向 `pm install` 传入 `-r`，默认 `true` |
 
-The base driver uses host networking, provides no process exec, filesystem isolation, task log collection, or Nomad service registration. It manages Android service lifecycle only.
+`artifact.source` 必须是手机可以访问的下载地址。修改后执行：
 
-## Termux shell contract
+```sh
+nomad job validate examples/android-service.nomad.hcl
+nomad job run examples/android-service.nomad.hcl
+nomad job status android-service
+```
 
-The `termux` driver uses the explicit `com.termux.app.RunCommandService`; it never forwards shell text to the Shizuku broker. The command is launched as a positional argument to a fixed lifecycle wrapper, so `command`, `args`, environment values, and working-directory values are not interpolated into that wrapper.
+查看 Allocation 状态：
 
-| Field | Required | Meaning |
+```sh
+nomad alloc status <allocation-id>
+```
+
+`android` 驱动只管理 APK 和 Android Service 生命周期。它使用宿主网络，不提供文件系统隔离、任务日志采集、`nomad alloc exec` 或 Nomad Service Registration。
+
+## 9. 运行 Termux Shell 任务
+
+示例文件：[`examples/termux-shell.nomad.hcl`](examples/termux-shell.nomad.hcl)
+
+先在 Termux 中确认任务所需命令存在：
+
+```sh
+command -v sh
+command -v uname
+```
+
+提交示例任务：
+
+```sh
+nomad job validate examples/termux-shell.nomad.hcl
+nomad job run examples/termux-shell.nomad.hcl
+nomad job status termux-shell
+```
+
+任务结束后查看输出：
+
+```sh
+nomad alloc logs <allocation-id> command
+```
+
+配置字段：
+
+| 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `command` | yes | Executable name or path. `$PREFIX` and `~` prefixes are expanded to Termux paths. |
-| `args` | no | Argument list passed unchanged to the command. |
-| `work_dir` | no | Termux working directory; defaults to the Termux home directory. |
-| `stdin` | no | String supplied to the command's standard input. |
+| `command` | 是 | 可执行文件名或路径；开头的 `$PREFIX` 和 `~` 会展开为 Termux 路径 |
+| `args` | 否 | 原样传给命令的参数列表 |
+| `work_dir` | 否 | Termux 工作目录，默认使用 Termux Home |
+| `stdin` | 否 | 传给命令标准输入的字符串 |
 
-Nomad task `env` values are exported before execution. The driver uses host networking and has no filesystem isolation, `nomad alloc exec`, signal RPC, or Android-UID switching. Termux cannot read Nomad Droid's private allocation directory, so commands should use Termux home or storage paths available to Termux.
+Nomad 任务的 `env` 会在执行前导出。`command`、`args`、环境变量值和工作目录会作为位置参数传给固定的生命周期包装器，不会拼接进包装器脚本。
 
-Termux returns background-command stdout and stderr through a `PendingIntent`. Its public contract truncates their combined result to 100 KB; Nomad Droid preserves the reported original lengths and appends a truncation marker to stderr. Output is handed to Nomad's log monitor after the command completes, not streamed while it runs.
+`termux` 驱动有以下运行边界：
 
-## Keep-alive behavior
+- 命令以 Termux 应用 UID 运行，不会切换为 Android 其他 UID；
+- 使用宿主网络，不提供文件系统隔离、`nomad alloc exec` 或 Signal RPC；
+- Termux 无法读取 Nomad Droid 的私有 Allocation 目录，工作目录应使用 Termux Home 或 Termux 可访问的存储路径；
+- stdout 和 stderr 在命令结束后交给 Nomad 日志监视器，不会实时流式传输；
+- Termux 的公开接口会将 stdout 与 stderr 的合计结果截断为 100 KB；发生截断时，Nomad Droid 会保留原始长度信息，并在 stderr 中追加截断标记；
+- 设备重启会终止 Termux 外部进程。恢复 Agent 时，仍处于活动状态的记录会先标记为失败，再由 Nomad 按 Job 的重启策略处理。
 
-- The agent is a `specialUse` foreground service with an ongoing notification and `START_STICKY` restart semantics.
-- While the user-selected desired state is running, it holds a non-reference-counted partial wake lock so Nomad timers and heartbeats can execute with the screen off.
-- The desired state is persisted. `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED` restore the foreground service after reboot or APK update.
-- **Stop** clears the desired state before shutting down, so boot/update restoration does not revive a user-stopped agent.
-- The app exposes Android's battery-optimization exemption prompt because Doze would otherwise suspend continuous network activity. A force-stop or a vendor "restricted" battery policy still suppresses app restarts until the user launches the app again.
-- A dead Shizuku UserService binding is cleared and rebound while Shizuku remains available. Shizuku must itself be running after a reboot; until its Binder returns, the Nomad node can reconnect but the `android` driver fingerprints as unhealthy.
-- Termux task state and command results are persisted for Nomad task recovery. A device reboot necessarily kills those external processes, so active records are marked failed before the Nomad client restores them; Nomad can then apply the job's restart policy instead of treating a dead command as running.
-- Termux runs in a separate Android app process. Nomad Droid's wake lock cannot exempt Termux from vendor process killing, which is why Termux's own battery policy must be configured on affected devices.
+停止任务时，驱动先向包装进程组发送 `TERM`；如果进程未在 Nomad 提供的停止超时内退出，再发送 `KILL`。
 
-## Code layout
+## 10. 停止任务或 Agent
 
-- `app/`: Android UI, foreground service, encrypted token store, Shizuku broker, and Termux `RUN_COMMAND` result/state bridge.
-- `native/nomadcore/`: embedded Nomad client, Android and Termux drivers, local UID-authenticated bridge, and JNI exports.
-- `native/build-android.sh`: reproducible ARM64 `c-shared` cross-build using the pinned NDK.
+停止 Nomad Job：
+
+```sh
+nomad job stop <job-name>
+```
+
+停止手机上的 Nomad Client：
+
+1. 打开 Nomad Droid。
+2. 点击 **Stop**。
+3. 确认状态变为 `Stopped`，前台服务通知消失，并且 **Keep alive** 显示 `restore=off`。
+
+## 11. 故障排查
+
+### 节点没有出现在 `nomad node status`
+
+1. 检查输入的是 Nomad RPC 地址，不是 HTTP API 地址。
+2. 确认手机能够访问该地址的 TCP `4647` 端口。
+3. 检查 **Last result** 中的连接或认证错误。
+4. 如果集群要求客户端引入认证，检查 Client Introduction Token。
+5. 点击 **Stop** 后重新启动 Agent。
+
+### `android` 驱动不健康
+
+1. 确认 Shizuku 应用显示服务正在运行。
+2. 确认 Nomad Droid 状态包含 `permission=granted`。
+3. 点击 **Connect broker**。
+4. 确认状态包含 `broker=connected`。
+5. 如果设备刚重启，先恢复 Shizuku，再等待 Nomad Droid 重新绑定。
+
+### `termux` 驱动不健康
+
+1. 确认安装的 Termux 版本不低于 `0.109`。
+2. 确认 `~/.termux/termux.properties` 中设置了 `allow-external-apps=true`。
+3. 确认 Nomad Droid 已获得 `RUN_COMMAND` 权限。
+4. 点击 **Test setup**。
+5. 确认最终状态包含 `setup=ready`。
+
+### Termux 任务启动失败
+
+1. 在 Termux 中使用 `command -v <命令>` 检查可执行文件。
+2. 使用绝对路径或 `$PREFIX/bin/<命令>`。
+3. 将 `work_dir` 设置为 Termux 有权访问的路径。
+4. 检查 Nomad Allocation 的事件和 **Last result**。
+
+### 熄屏后节点离线或 Termux 任务中断
+
+1. 确认 Nomad Droid 的 **Keep alive** 显示 `Doze exemption=granted`。
+2. 在厂商后台管理中将 Nomad Droid 设为不受限制。
+3. 使用 Termux 时，将 Termux 也设为不受限制。
+4. 确认没有对两个应用执行“强行停止”。
+
+### Termux 日志缺失或被截断
+
+Termux 日志只在命令结束后提交。如果输出超过 Termux 接口允许的容量，stderr 中会出现：
+
+```text
+[nomad-droid] Termux truncated command output
+```
+
+## 12. 开发验证
+
+执行完整的 Android 构建检查：
+
+```sh
+./gradlew clean testDebugUnitTest lintDebug assembleDebug assembleRelease
+```
+
+执行 Go 单元测试：
+
+```sh
+cd native/nomadcore
+CGO_ENABLED=0 go test ./...
+```
+
+APK 输出目录：
+
+```text
+app/build/outputs/apk/debug/
+app/build/outputs/apk/release/
+```
+
+Release APK 默认未签名，分发前需要使用自己的签名配置签名。
+
+## 13. 项目目录
+
+- `app/`：Android UI、前台服务、加密 Token 存储、Shizuku Broker，以及 Termux 命令结果和状态桥接；
+- `native/nomadcore/`：嵌入式 Nomad Client、`android` 和 `termux` 驱动、本机 UID 鉴权桥接及 JNI 导出；
+- `native/build-android.sh`：使用固定 NDK 版本构建 ARM64 `c-shared` 库；
+- `examples/`：可修改后提交到 Nomad Server 的 Job 示例。
+
+## 14. 参考资料
+
+- [Nomad Job Specification](https://developer.hashicorp.com/nomad/docs/job-specification)
+- [Shizuku 使用说明](https://shizuku.rikka.app/guide/setup/)
+- [Termux RUN_COMMAND 说明](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent)
+- [Termux F-Droid 下载页](https://f-droid.org/packages/com.termux/)
