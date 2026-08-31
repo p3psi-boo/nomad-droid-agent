@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="nomad_primary">#5B3FD1</color>
+    <color name="nomad_primary_dark">#3B278F</color>
+    <color name="nomad_background">#F7F5FC</color>
+    <color name="nomad_surface">#FFFFFF</color>
+    <color name="nomad_text">#201A2B</color>
+    <color name="nomad_muted">#665F70</color>
+    <color name="nomad_success">#176B45</color>
+    <color name="nomad_warning">#8A4B00</color>
+</resources>
+

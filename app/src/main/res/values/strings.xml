@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nomad Droid</string>
+    <string name="agent_channel_name">Nomad Agent</string>
+    <string name="agent_channel_description">Nomad client connection and Android allocations</string>
+    <string name="agent_notification_title">Nomad Droid is running</string>
+    <string name="agent_notification_connecting">Connecting to Nomad</string>
+    <string name="stop_agent">Stop agent</string>
+    <string name="server_address_label">Nomad server RPC address (host:4647 or [IPv6]:4647)</string>
+    <string name="node_name_label">Node name (for example, pixel-01)</string>
+    <string name="datacenter_label">Datacenter (for example, android)</string>
+    <string name="intro_token_label">Client introduction token (optional)</string>
+    <string name="battery_settings">Battery settings</string>
+</resources>
