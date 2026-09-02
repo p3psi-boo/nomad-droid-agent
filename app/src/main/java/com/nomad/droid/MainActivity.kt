@@ -15,14 +15,16 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.view.WindowInsets
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -46,48 +48,36 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configStore: AgentConfigStore
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
 
+    // Navigation & Pages
+    private lateinit var bottomNav: BottomNavigationView
+    private lateinit var pageDashboard: NestedScrollView
+    private lateinit var pageConfig: NestedScrollView
+    private lateinit var pageDrivers: NestedScrollView
+    private lateinit var pageLogs: NestedScrollView
+
     // Header Actions
     private lateinit var btnHeaderDiagnostics: MaterialButton
     private lateinit var btnHeaderProfiles: MaterialButton
     private lateinit var btnHeaderShare: MaterialButton
 
-    // Hero Section
+    // Page 1: Dashboard
     private lateinit var heroCard: MaterialCardView
-    private lateinit var heroStatusBadge: TextView
-    private lateinit var heroDatacenterChip: TextView
-    private lateinit var heroNodeChip: TextView
+    private lateinit var heroStatusIcon: ImageView
+    private lateinit var heroTitleText: TextView
+    private lateinit var heroStatusChip: Chip
+    private lateinit var heroDatacenterChip: Chip
+    private lateinit var heroNodeChip: Chip
     private lateinit var heroDescription: TextView
     private lateinit var btnHeroToggle: MaterialButton
+    private lateinit var allocationsBadge: Chip
+    private lateinit var allocationsListContainer: LinearLayout
+    private lateinit var allocationsEmptyText: TextView
+    private lateinit var cardQuickDrivers: MaterialCardView
+    private lateinit var quickDriversSubtitle: TextView
+    private lateinit var envSummaryBadge: Chip
 
-    // Environment & Drivers
-    private lateinit var envHeaderLayout: LinearLayout
-    private lateinit var envSummaryBadge: TextView
-    private lateinit var envExpandArrow: ImageView
-    private lateinit var envContentContainer: LinearLayout
-    private var isEnvExpanded = false
-
-    private lateinit var shizukuBadge: TextView
-    private lateinit var shizukuStatus: TextView
-    private lateinit var grantShizuku: MaterialButton
-    private lateinit var connectBroker: MaterialButton
-
-    private lateinit var rootBadge: TextView
-    private lateinit var rootStatus: TextView
-    private lateinit var grantRoot: MaterialButton
-
-    private lateinit var termuxBadge: TextView
-    private lateinit var termuxStatus: TextView
-    private lateinit var grantTermux: MaterialButton
-    private lateinit var testTermux: MaterialButton
-    private lateinit var openTermuxSettings: MaterialButton
-
-    private lateinit var batteryBadge: TextView
-    private lateinit var batteryStatus: TextView
-    private lateinit var openBatterySettings: MaterialButton
-    private lateinit var btnRunDiagnostics: MaterialButton
-
-    // Configuration
-    private lateinit var profileBadge: TextView
+    // Page 2: Config
+    private lateinit var profileBadge: Chip
     private lateinit var configLockedNotice: TextView
     private lateinit var serverAddressLayout: TextInputLayout
     private lateinit var serverAddress: TextInputEditText
@@ -102,10 +92,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var introToken: TextInputEditText
     private lateinit var btnPasteToken: MaterialButton
 
-    // Allocations & Logs
-    private lateinit var allocationsBadge: TextView
-    private lateinit var allocationsListContainer: LinearLayout
-    private lateinit var allocationsEmptyText: TextView
+    // Page 3: Drivers
+    private lateinit var shizukuBadge: Chip
+    private lateinit var shizukuStatus: TextView
+    private lateinit var grantShizuku: MaterialButton
+    private lateinit var connectBroker: MaterialButton
+    private lateinit var rootBadge: Chip
+    private lateinit var rootStatus: TextView
+    private lateinit var grantRoot: MaterialButton
+    private lateinit var termuxBadge: Chip
+    private lateinit var termuxStatus: TextView
+    private lateinit var grantTermux: MaterialButton
+    private lateinit var testTermux: MaterialButton
+    private lateinit var openTermuxSettings: MaterialButton
+    private lateinit var batteryBadge: Chip
+    private lateinit var batteryStatus: TextView
+    private lateinit var openBatterySettings: MaterialButton
+    private lateinit var btnRunDiagnostics: MaterialButton
+
+    // Page 4: Logs
     private lateinit var errorAdviceBanner: TextView
     private lateinit var logConsole: TextView
     private lateinit var btnCopyLogs: MaterialButton
@@ -134,19 +139,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        findViewById<View>(R.id.rootScroll).setOnApplyWindowInsetsListener { view, insets ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val bars = insets.getInsets(WindowInsets.Type.systemBars())
-                view.setPadding(0, bars.top, 0, bars.bottom)
-            } else {
-                @Suppress("DEPRECATION")
-                view.setPadding(0, insets.systemWindowInsetTop, 0, insets.systemWindowInsetBottom)
-            }
-            insets
-        }
-
         configStore = AgentConfigStore(this)
         bindViews()
+        setupNavigation()
         setupListeners()
 
         handleDeepLink(intent)
@@ -164,7 +159,7 @@ class MainActivity : AppCompatActivity() {
         renderRuntimeState()
         updateEnvironmentSummary()
 
-        AppLogger.i("MainActivity", "Nomad Droid Material 3 UI loaded.")
+        AppLogger.i("MainActivity", "Nomad Droid Material 3 Tabbed UI loaded.")
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -173,42 +168,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun bindViews() {
+        bottomNav = findViewById(R.id.bottomNav)
+        pageDashboard = findViewById(R.id.pageDashboard)
+        pageConfig = findViewById(R.id.pageConfig)
+        pageDrivers = findViewById(R.id.pageDrivers)
+        pageLogs = findViewById(R.id.pageLogs)
+
         btnHeaderDiagnostics = findViewById(R.id.btnHeaderDiagnostics)
         btnHeaderProfiles = findViewById(R.id.btnHeaderProfiles)
         btnHeaderShare = findViewById(R.id.btnHeaderShare)
 
+        // Dashboard
         heroCard = findViewById(R.id.heroCard)
-        heroStatusBadge = findViewById(R.id.heroStatusBadge)
+        heroStatusIcon = findViewById(R.id.heroStatusIcon)
+        heroTitleText = findViewById(R.id.heroTitleText)
+        heroStatusChip = findViewById(R.id.heroStatusChip)
         heroDatacenterChip = findViewById(R.id.heroDatacenterChip)
         heroNodeChip = findViewById(R.id.heroNodeChip)
         heroDescription = findViewById(R.id.heroDescription)
         btnHeroToggle = findViewById(R.id.btnHeroToggle)
-
-        envHeaderLayout = findViewById(R.id.envHeaderLayout)
+        allocationsBadge = findViewById(R.id.allocationsBadge)
+        allocationsListContainer = findViewById(R.id.allocationsListContainer)
+        allocationsEmptyText = findViewById(R.id.allocationsEmptyText)
+        cardQuickDrivers = findViewById(R.id.cardQuickDrivers)
+        quickDriversSubtitle = findViewById(R.id.quickDriversSubtitle)
         envSummaryBadge = findViewById(R.id.envSummaryBadge)
-        envExpandArrow = findViewById(R.id.envExpandArrow)
-        envContentContainer = findViewById(R.id.envContentContainer)
 
-        shizukuBadge = findViewById(R.id.shizukuBadge)
-        shizukuStatus = findViewById(R.id.shizukuStatus)
-        grantShizuku = findViewById(R.id.grantShizuku)
-        connectBroker = findViewById(R.id.connectBroker)
-
-        rootBadge = findViewById(R.id.rootBadge)
-        rootStatus = findViewById(R.id.rootStatus)
-        grantRoot = findViewById(R.id.grantRoot)
-
-        termuxBadge = findViewById(R.id.termuxBadge)
-        termuxStatus = findViewById(R.id.termuxStatus)
-        grantTermux = findViewById(R.id.grantTermux)
-        testTermux = findViewById(R.id.testTermux)
-        openTermuxSettings = findViewById(R.id.openTermuxSettings)
-
-        batteryBadge = findViewById(R.id.batteryBadge)
-        batteryStatus = findViewById(R.id.batteryStatus)
-        openBatterySettings = findViewById(R.id.openBatterySettings)
-        btnRunDiagnostics = findViewById(R.id.btnRunDiagnostics)
-
+        // Config
         profileBadge = findViewById(R.id.profileBadge)
         configLockedNotice = findViewById(R.id.configLockedNotice)
         serverAddressLayout = findViewById(R.id.serverAddressLayout)
@@ -224,18 +210,64 @@ class MainActivity : AppCompatActivity() {
         introToken = findViewById(R.id.introToken)
         btnPasteToken = findViewById(R.id.btnPasteToken)
 
-        allocationsBadge = findViewById(R.id.allocationsBadge)
-        allocationsListContainer = findViewById(R.id.allocationsListContainer)
-        allocationsEmptyText = findViewById(R.id.allocationsEmptyText)
+        // Drivers
+        shizukuBadge = findViewById(R.id.shizukuBadge)
+        shizukuStatus = findViewById(R.id.shizukuStatus)
+        grantShizuku = findViewById(R.id.grantShizuku)
+        connectBroker = findViewById(R.id.connectBroker)
+        rootBadge = findViewById(R.id.rootBadge)
+        rootStatus = findViewById(R.id.rootStatus)
+        grantRoot = findViewById(R.id.grantRoot)
+        termuxBadge = findViewById(R.id.termuxBadge)
+        termuxStatus = findViewById(R.id.termuxStatus)
+        grantTermux = findViewById(R.id.grantTermux)
+        testTermux = findViewById(R.id.testTermux)
+        openTermuxSettings = findViewById(R.id.openTermuxSettings)
+        batteryBadge = findViewById(R.id.batteryBadge)
+        batteryStatus = findViewById(R.id.batteryStatus)
+        openBatterySettings = findViewById(R.id.openBatterySettings)
+        btnRunDiagnostics = findViewById(R.id.btnRunDiagnostics)
+
+        // Logs
         errorAdviceBanner = findViewById(R.id.errorAdviceBanner)
         logConsole = findViewById(R.id.logConsole)
         btnCopyLogs = findViewById(R.id.btnCopyLogs)
         btnClearLogs = findViewById(R.id.btnClearLogs)
     }
 
+    private fun setupNavigation() {
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_dashboard -> selectTab(0)
+                R.id.nav_config -> selectTab(1)
+                R.id.nav_drivers -> selectTab(2)
+                R.id.nav_logs -> selectTab(3)
+                else -> false
+            }
+        }
+    }
+
+    private fun selectTab(index: Int): Boolean {
+        pageDashboard.visibility = if (index == 0) View.VISIBLE else View.GONE
+        pageConfig.visibility = if (index == 1) View.VISIBLE else View.GONE
+        pageDrivers.visibility = if (index == 2) View.VISIBLE else View.GONE
+        pageLogs.visibility = if (index == 3) View.VISIBLE else View.GONE
+        return true
+    }
+
+    private fun switchToTab(index: Int) {
+        val itemId = when (index) {
+            0 -> R.id.nav_dashboard
+            1 -> R.id.nav_config
+            2 -> R.id.nav_drivers
+            else -> R.id.nav_logs
+        }
+        bottomNav.selectedItemId = itemId
+    }
+
     private fun setupListeners() {
-        envHeaderLayout.setOnClickListener {
-            toggleEnvPanel()
+        cardQuickDrivers.setOnClickListener {
+            switchToTab(2)
         }
 
         btnHeroToggle.setOnClickListener {
@@ -303,14 +335,6 @@ class MainActivity : AppCompatActivity() {
             AppLogger.clear()
             Toast.makeText(this, "Logs cleared", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun toggleEnvPanel() {
-        isEnvExpanded = !isEnvExpanded
-        envContentContainer.visibility = if (isEnvExpanded) View.VISIBLE else View.GONE
-        envExpandArrow.setImageResource(
-            if (isEnvExpanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more,
-        )
     }
 
     private fun pasteTokenFromClipboard() {
@@ -568,15 +592,16 @@ class MainActivity : AppCompatActivity() {
             errorAdviceBanner.text = "⚠️ Validation error: $msg"
             errorAdviceBanner.visibility = View.VISIBLE
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            selectTab(1) // switch to config tab to see error
             return
         }
 
         errorAdviceBanner.visibility = View.GONE
         configStore.save(config)
         configStore.desiredRunning = true
-        startForegroundService(AgentForegroundService.startIntent(this))
         configStore.runtimeStatus = "Starting"
         configStore.lastResult = "Agent start requested by user."
+        startForegroundService(AgentForegroundService.startIntent(this))
         renderRuntimeState()
         renderBatteryState()
         AppLogger.i("Agent", "Agent start requested.")
@@ -584,9 +609,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopAgent() {
         configStore.desiredRunning = false
-        startService(AgentForegroundService.stopIntent(this))
         configStore.runtimeStatus = "Stopping"
-        configStore.lastResult = "Agent stop requested by user."
+        startService(AgentForegroundService.stopIntent(this))
         renderRuntimeState()
         renderBatteryState()
         AppLogger.i("Agent", "Agent stop requested.")
@@ -605,30 +629,30 @@ class MainActivity : AppCompatActivity() {
         when {
             state.brokerConnected -> {
                 shizukuBadge.text = "CONNECTED"
-                shizukuBadge.setBackgroundResource(R.drawable.badge_green)
+                shizukuBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
                 shizukuBadge.setTextColor(getColor(R.color.md3_status_success_text))
             }
             state.permissionGranted -> {
                 shizukuBadge.text = "PERMISSION GRANTED"
-                shizukuBadge.setBackgroundResource(R.drawable.badge_amber)
+                shizukuBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
                 shizukuBadge.setTextColor(getColor(R.color.md3_status_warning_text))
             }
             state.binderAlive -> {
                 shizukuBadge.text = "SERVICE RUNNING"
-                shizukuBadge.setBackgroundResource(R.drawable.badge_neutral)
+                shizukuBadge.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
                 shizukuBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
             }
             else -> {
                 shizukuBadge.text = "INACTIVE"
-                shizukuBadge.setBackgroundResource(R.drawable.badge_neutral)
+                shizukuBadge.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
                 shizukuBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
             }
         }
 
         val details = buildList {
             add(state.message)
-            state.shizukuUid?.let { add("Shizuku UID=$it") }
-            state.brokerUid?.let { add("Broker UID=$it") }
+            state.shizukuUid?.let { add("UID=$it") }
+            state.brokerUid?.let { add("Broker=$it") }
         }
         shizukuStatus.text = details.joinToString(" · ")
         grantShizuku.isEnabled = state.binderAlive && !state.permissionGranted
@@ -640,17 +664,17 @@ class MainActivity : AppCompatActivity() {
         when {
             state.permissionGranted -> {
                 rootBadge.text = "READY (UID=0)"
-                rootBadge.setBackgroundResource(R.drawable.badge_green)
+                rootBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
                 rootBadge.setTextColor(getColor(R.color.md3_status_success_text))
             }
             state.suAvailable -> {
                 rootBadge.text = "SU AVAILABLE"
-                rootBadge.setBackgroundResource(R.drawable.badge_amber)
+                rootBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
                 rootBadge.setTextColor(getColor(R.color.md3_status_warning_text))
             }
             else -> {
                 rootBadge.text = "NOT CHECKED"
-                rootBadge.setBackgroundResource(R.drawable.badge_neutral)
+                rootBadge.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
                 rootBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
             }
         }
@@ -668,23 +692,23 @@ class MainActivity : AppCompatActivity() {
     private fun renderTermux(state: TermuxManager.State) {
         when {
             state.ready -> {
-                termuxBadge.text = "READY & VERIFIED"
-                termuxBadge.setBackgroundResource(R.drawable.badge_green)
+                termuxBadge.text = "READY"
+                termuxBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
                 termuxBadge.setTextColor(getColor(R.color.md3_status_success_text))
             }
             state.permissionGranted -> {
                 termuxBadge.text = "SETUP: ${state.setupState.uppercase()}"
-                termuxBadge.setBackgroundResource(R.drawable.badge_amber)
+                termuxBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
                 termuxBadge.setTextColor(getColor(R.color.md3_status_warning_text))
             }
             state.installed -> {
                 termuxBadge.text = "PERMISSION NEEDED"
-                termuxBadge.setBackgroundResource(R.drawable.badge_amber)
+                termuxBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
                 termuxBadge.setTextColor(getColor(R.color.md3_status_warning_text))
             }
             else -> {
                 termuxBadge.text = "NOT INSTALLED"
-                termuxBadge.setBackgroundResource(R.drawable.badge_neutral)
+                termuxBadge.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
                 termuxBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
             }
         }
@@ -707,14 +731,14 @@ class MainActivity : AppCompatActivity() {
 
         if (exempt) {
             batteryBadge.text = "EXEMPT (DOZE OFF)"
-            batteryBadge.setBackgroundResource(R.drawable.badge_green)
+            batteryBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
             batteryBadge.setTextColor(getColor(R.color.md3_status_success_text))
-            batteryStatus.text = "Nomad Droid is exempt from battery optimizations. Background keep-alive active."
+            batteryStatus.text = "Background keep-alive active."
         } else {
             batteryBadge.text = "RESTRICTED"
-            batteryBadge.setBackgroundResource(R.drawable.badge_amber)
+            batteryBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
             batteryBadge.setTextColor(getColor(R.color.md3_status_warning_text))
-            batteryStatus.text = "Subject to Android battery optimization. Screen off may interrupt client."
+            batteryStatus.text = "Screen off may interrupt client."
         }
         updateEnvironmentSummary()
     }
@@ -729,13 +753,15 @@ class MainActivity : AppCompatActivity() {
         val overallReady = readyDrivers > 0 && batteryReady
 
         if (overallReady) {
-            envSummaryBadge.text = "Ready ($readyDrivers drivers · battery ok)"
-            envSummaryBadge.setBackgroundResource(R.drawable.badge_green)
+            envSummaryBadge.text = "Ready ($readyDrivers/3 drivers)"
+            envSummaryBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
             envSummaryBadge.setTextColor(getColor(R.color.md3_status_success_text))
+            quickDriversSubtitle.text = "$readyDrivers of 3 execution drivers ready"
         } else {
             envSummaryBadge.text = "Setup Needed"
-            envSummaryBadge.setBackgroundResource(R.drawable.badge_amber)
+            envSummaryBadge.setChipBackgroundColorResource(R.color.md3_status_warning_container)
             envSummaryBadge.setTextColor(getColor(R.color.md3_status_warning_text))
+            quickDriversSubtitle.text = "Tap to configure Shizuku, Root, or Termux"
         }
     }
 
@@ -748,10 +774,13 @@ class MainActivity : AppCompatActivity() {
 
         when {
             isRunning -> {
-                heroStatusBadge.text = getString(R.string.status_running)
-                heroStatusBadge.setBackgroundResource(R.drawable.badge_green)
-                heroStatusBadge.setTextColor(getColor(R.color.md3_status_success_text))
-                heroDescription.text = "Agent active & connected to ${serverAddress.text}"
+                heroTitleText.text = "Nomad Agent Active"
+                heroStatusChip.text = getString(R.string.status_running)
+                heroStatusChip.setChipBackgroundColorResource(R.color.md3_status_success_container)
+                heroStatusChip.setTextColor(getColor(R.color.md3_status_success_text))
+                heroStatusIcon.setImageResource(R.drawable.ic_check_circle)
+                heroStatusIcon.imageTintList = ColorStateList.valueOf(getColor(R.color.md3_status_success_text))
+                heroDescription.text = "Connected to ${serverAddress.text}"
                 btnHeroToggle.text = getString(R.string.stop_agent)
                 btnHeroToggle.setIconResource(R.drawable.ic_stop)
                 btnHeroToggle.backgroundTintList = ColorStateList.valueOf(getColor(R.color.md_theme_error))
@@ -759,10 +788,13 @@ class MainActivity : AppCompatActivity() {
                 lockFormInputs(true)
             }
             isStarting -> {
-                heroStatusBadge.text = getString(R.string.status_starting)
-                heroStatusBadge.setBackgroundResource(R.drawable.badge_amber)
-                heroStatusBadge.setTextColor(getColor(R.color.md3_status_warning_text))
-                heroDescription.text = "Connecting to Nomad cluster at ${serverAddress.text}…"
+                heroTitleText.text = "Connecting to Cluster…"
+                heroStatusChip.text = getString(R.string.status_starting)
+                heroStatusChip.setChipBackgroundColorResource(R.color.md3_status_warning_container)
+                heroStatusChip.setTextColor(getColor(R.color.md3_status_warning_text))
+                heroStatusIcon.setImageResource(R.drawable.ic_server)
+                heroStatusIcon.imageTintList = ColorStateList.valueOf(getColor(R.color.md3_status_warning_text))
+                heroDescription.text = "Establishing RPC session to ${serverAddress.text}…"
                 btnHeroToggle.text = getString(R.string.stop_agent)
                 btnHeroToggle.setIconResource(R.drawable.ic_stop)
                 btnHeroToggle.backgroundTintList = ColorStateList.valueOf(getColor(R.color.md_theme_error))
@@ -770,20 +802,24 @@ class MainActivity : AppCompatActivity() {
                 lockFormInputs(true)
             }
             isStopping -> {
-                heroStatusBadge.text = "STOPPING…"
-                heroStatusBadge.setBackgroundResource(R.drawable.badge_amber)
-                heroStatusBadge.setTextColor(getColor(R.color.md3_status_warning_text))
-                heroDescription.text = "Gracefully shutting down Nomad client…"
+                heroTitleText.text = "Stopping Client…"
+                heroStatusChip.text = "STOPPING…"
+                heroStatusChip.setChipBackgroundColorResource(R.color.md3_status_warning_container)
+                heroStatusChip.setTextColor(getColor(R.color.md3_status_warning_text))
+                heroDescription.text = "Shutting down Nomad agent safely…"
                 btnHeroToggle.text = "Stopping…"
                 btnHeroToggle.setIconResource(R.drawable.ic_stop)
                 btnHeroToggle.isEnabled = false
                 lockFormInputs(true)
             }
             isFailed -> {
-                heroStatusBadge.text = getString(R.string.status_failed)
-                heroStatusBadge.setBackgroundResource(R.drawable.badge_red)
-                heroStatusBadge.setTextColor(getColor(R.color.md3_status_error_text))
-                heroDescription.text = "Agent failed to start. Review logs below for details."
+                heroTitleText.text = "Agent Start Failed"
+                heroStatusChip.text = getString(R.string.status_failed)
+                heroStatusChip.setChipBackgroundColorResource(R.color.md3_status_error_container)
+                heroStatusChip.setTextColor(getColor(R.color.md3_status_error_text))
+                heroStatusIcon.setImageResource(R.drawable.ic_error_outline)
+                heroStatusIcon.imageTintList = ColorStateList.valueOf(getColor(R.color.md3_status_error_text))
+                heroDescription.text = "Encountered error. Check logs tab."
                 btnHeroToggle.text = getString(R.string.start_agent)
                 btnHeroToggle.setIconResource(R.drawable.ic_play_arrow)
                 btnHeroToggle.backgroundTintList = ColorStateList.valueOf(getColor(R.color.md_theme_primary))
@@ -795,10 +831,13 @@ class MainActivity : AppCompatActivity() {
                 errorAdviceBanner.visibility = View.VISIBLE
             }
             else -> {
-                heroStatusBadge.text = getString(R.string.status_stopped)
-                heroStatusBadge.setBackgroundResource(R.drawable.badge_neutral)
-                heroStatusBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
-                heroDescription.text = "Nomad agent is stopped. Tap Start to connect."
+                heroTitleText.text = "Nomad Client Stopped"
+                heroStatusChip.text = getString(R.string.status_stopped)
+                heroStatusChip.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
+                heroStatusChip.setTextColor(getColor(R.color.md3_status_neutral_text))
+                heroStatusIcon.setImageResource(R.drawable.ic_server)
+                heroStatusIcon.imageTintList = ColorStateList.valueOf(getColor(R.color.md_theme_primary))
+                heroDescription.text = "Ready to connect to cluster"
                 btnHeroToggle.text = getString(R.string.start_agent)
                 btnHeroToggle.setIconResource(R.drawable.ic_play_arrow)
                 btnHeroToggle.backgroundTintList = ColorStateList.valueOf(getColor(R.color.md_theme_primary))
@@ -823,10 +862,10 @@ class MainActivity : AppCompatActivity() {
         val active = workloads.filter { it.status == "Running" }
         allocationsBadge.text = "${active.size} active"
         if (active.isNotEmpty()) {
-            allocationsBadge.setBackgroundResource(R.drawable.badge_green)
+            allocationsBadge.setChipBackgroundColorResource(R.color.md3_status_success_container)
             allocationsBadge.setTextColor(getColor(R.color.md3_status_success_text))
         } else {
-            allocationsBadge.setBackgroundResource(R.drawable.badge_neutral)
+            allocationsBadge.setChipBackgroundColorResource(R.color.md3_status_neutral_container)
             allocationsBadge.setTextColor(getColor(R.color.md3_status_neutral_text))
         }
 
@@ -840,9 +879,9 @@ class MainActivity : AppCompatActivity() {
             val row = TextView(this).apply {
                 val statusDot = if (item.status == "Running") "🟢" else "⚪"
                 text = "$statusDot [${item.kind}] ${item.target} · ${item.status}"
-                textSize = 12f
+                textSize = 13f
                 setTextColor(getColor(R.color.md_theme_onSurface))
-                setPadding(0, 4, 0, 4)
+                setPadding(0, 6, 0, 6)
             }
             allocationsListContainer.addView(row)
         }

@@ -42,4 +42,10 @@
     <string name="status_starting">STARTING…</string>
     <string name="status_running">RUNNING</string>
     <string name="status_failed">FAILED</string>
+
+    <!-- Navigation Tabs -->
+    <string name="tab_dashboard">Dashboard</string>
+    <string name="tab_config">Config</string>
+    <string name="tab_drivers">Drivers</string>
+    <string name="tab_logs">Logs</string>
 </resources>
