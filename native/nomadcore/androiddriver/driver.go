@@ -29,17 +29,19 @@ const (
 )
 
 type TaskConfig struct {
-	Package string `codec:"package"`
-	Service string `codec:"service"`
-	APKPath string `codec:"apk_path"`
-	SHA256  string `codec:"sha256"`
-	Install bool   `codec:"install"`
-	Replace bool   `codec:"replace"`
+	Package   string `codec:"package"`
+	Service   string `codec:"service"`
+	APKPath   string `codec:"apk_path"`
+	SHA256    string `codec:"sha256"`
+	Install   bool   `codec:"install"`
+	Replace   bool   `codec:"replace"`
+	Privilege string `codec:"privilege"`
 }
 
 type DriverState struct {
 	Package   string    `codec:"package"`
 	Service   string    `codec:"service"`
+	Privilege string    `codec:"privilege"`
 	StartedAt time.Time `codec:"started_at"`
 }
 
@@ -116,6 +118,10 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 			hclspec.NewAttr("replace", "bool", false),
 			hclspec.NewLiteral("true"),
 		),
+		"privilege": hclspec.NewDefault(
+			hclspec.NewAttr("privilege", "string", false),
+			hclspec.NewLiteral(`"shizuku"`),
+		),
 	}), nil
 }
 
@@ -154,28 +160,35 @@ func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, 
 }
 
 func (d *Driver) fingerprint(ctx context.Context) *drivers.Fingerprint {
-	response, err := d.bridge.Call(ctx, map[string]any{"action": "capabilities"})
+	response, err := d.bridge.Call(ctx, map[string]any{"action": "privilege_status"})
+	attributes := map[string]*pstructs.Attribute{
+		"driver.android": pstructs.NewBoolAttribute(true),
+	}
+	if err == nil {
+		attributes["driver.android.shizuku"] = pstructs.NewBoolAttribute(response.ShizukuReady)
+		attributes["driver.android.root"] = pstructs.NewBoolAttribute(response.RootReady)
+		if response.ShizukuReady {
+			attributes["driver.android.shizuku.uid"] = pstructs.NewIntAttribute(int64(response.ShizukuUID), "")
+		}
+		if response.RootReady {
+			attributes["driver.android.root.uid"] = pstructs.NewIntAttribute(int64(response.RootUID), "")
+		}
+	}
 	if err != nil || !response.OK {
-		description := "Shizuku broker is unavailable"
+		description := "No Android privilege backend is ready"
 		if err != nil {
 			description = err.Error()
 		} else if response.Output != "" {
 			description = response.Output
 		}
 		return &drivers.Fingerprint{
-			Attributes: map[string]*pstructs.Attribute{
-				"driver.android": pstructs.NewBoolAttribute(true),
-			},
+			Attributes:        attributes,
 			Health:            drivers.HealthStateUnhealthy,
 			HealthDescription: description,
 		}
 	}
 	return &drivers.Fingerprint{
-		Attributes: map[string]*pstructs.Attribute{
-			"driver.android":         pstructs.NewBoolAttribute(true),
-			"driver.android.shizuku": pstructs.NewBoolAttribute(true),
-			"driver.android.uid":     pstructs.NewIntAttribute(int64(response.UID), ""),
-		},
+		Attributes:        attributes,
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: drivers.DriverHealthy,
 	}
@@ -188,6 +201,10 @@ func (d *Driver) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 	}
 	if taskConfig.Package == "" || taskConfig.Service == "" {
 		return nil, nil, fmt.Errorf("package and service are required")
+	}
+	privilege, err := normalizePrivilege(taskConfig.Privilege)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	d.mu.RLock()
@@ -207,6 +224,7 @@ func (d *Driver) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 		}
 		if _, err := d.bridge.Require(d.ctx, map[string]any{
 			"action":   "install_package",
+			"backend":  privilege,
 			"apk_path": apkPath,
 			"sha256":   taskConfig.SHA256,
 			"replace":  taskConfig.Replace,
@@ -217,13 +235,19 @@ func (d *Driver) StartTask(config *drivers.TaskConfig) (*drivers.TaskHandle, *dr
 
 	if _, err := d.bridge.Require(d.ctx, map[string]any{
 		"action":    "start_service",
+		"backend":   privilege,
 		"package":   taskConfig.Package,
 		"component": taskConfig.Service,
 	}); err != nil {
 		return nil, nil, err
 	}
 
-	state := DriverState{Package: taskConfig.Package, Service: taskConfig.Service, StartedAt: time.Now().UTC()}
+	state := DriverState{
+		Package:   taskConfig.Package,
+		Service:   taskConfig.Service,
+		Privilege: privilege,
+		StartedAt: time.Now().UTC(),
+	}
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = config
 	handle.State = drivers.TaskStateRunning
@@ -252,8 +276,14 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if err := handle.GetDriverState(&state); err != nil {
 		return fmt.Errorf("decode Android driver state: %w", err)
 	}
+	privilege, err := normalizePrivilege(state.Privilege)
+	if err != nil {
+		return err
+	}
+	state.Privilege = privilege
 	response, err := d.bridge.Require(d.ctx, map[string]any{
 		"action":    "inspect_service",
+		"backend":   state.Privilege,
 		"package":   state.Package,
 		"component": state.Service,
 	})
@@ -315,6 +345,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, _ string) error 
 	d.mu.Unlock()
 	if _, err := d.bridge.Require(d.ctx, map[string]any{
 		"action":    "stop_service",
+		"backend":   task.state.Privilege,
 		"package":   task.state.Package,
 		"component": task.state.Service,
 	}); err != nil {
@@ -328,12 +359,14 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, _ string) error 
 		time.Sleep(timeout)
 		response, err := d.bridge.Call(d.ctx, map[string]any{
 			"action":    "inspect_service",
+			"backend":   task.state.Privilege,
 			"package":   task.state.Package,
 			"component": task.state.Service,
 		})
 		if err == nil && response.Running {
 			if _, err := d.bridge.Require(d.ctx, map[string]any{
 				"action":  "force_stop",
+				"backend": task.state.Privilege,
 				"package": task.state.Package,
 			}); err != nil {
 				return err
@@ -380,8 +413,9 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		CompletedAt: task.completed,
 		ExitResult:  task.result.Copy(),
 		DriverAttributes: map[string]string{
-			"package": task.state.Package,
-			"service": task.state.Service,
+			"package":   task.state.Package,
+			"service":   task.state.Service,
+			"privilege": task.state.Privilege,
 		},
 	}, nil
 }
@@ -465,6 +499,7 @@ func (d *Driver) monitorTask(taskID string) {
 
 		response, err := d.bridge.Call(d.ctx, map[string]any{
 			"action":    "inspect_service",
+			"backend":   state.Privilege,
 			"package":   state.Package,
 			"component": state.Service,
 		})
@@ -481,6 +516,16 @@ func (d *Driver) monitorTask(taskID string) {
 		}
 		timer.Reset(fingerprintPeriod)
 	}
+}
+
+func normalizePrivilege(configured string) (string, error) {
+	if configured == "" {
+		return "shizuku", nil
+	}
+	if configured != "shizuku" && configured != "root" {
+		return "", fmt.Errorf("privilege must be shizuku or root")
+	}
+	return configured, nil
 }
 
 func resolveArtifactPath(config *drivers.TaskConfig, configured string) (string, error) {

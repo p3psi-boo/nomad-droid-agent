@@ -18,7 +18,7 @@ import (
 )
 
 func TestTaskLifecycleAndRecovery(t *testing.T) {
-	socket, brokerActions := startTestBroker(t)
+	socket, brokerRequests := startTestBroker(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -72,9 +72,89 @@ func TestTaskLifecycleAndRecovery(t *testing.T) {
 	}
 
 	wantActions := []string{"start_service", "inspect_service", "stop_service"}
-	gotActions := brokerActions()
+	requests := brokerRequests()
+	gotActions := make([]string, 0, len(requests))
+	for _, request := range requests {
+		gotActions = append(gotActions, request["action"].(string))
+		if request["backend"] != "shizuku" {
+			t.Fatalf("backend = %#v, want shizuku", request["backend"])
+		}
+	}
 	if !slices.Equal(gotActions, wantActions) {
 		t.Fatalf("broker actions = %v, want %v", gotActions, wantActions)
+	}
+}
+
+func TestRootPrivilegeIsSentToEveryBridgeOperation(t *testing.T) {
+	socket, brokerRequests := startTestBroker(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	driver := New(ctx, hclog.NewNullLogger(), bridge.New(socket))
+	config := &drivers.TaskConfig{ID: "root-task", Name: "root-service", AllocDir: t.TempDir()}
+	taskDir := config.TaskDir().Dir
+	if err := os.MkdirAll(taskDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	apkPath := filepath.Join(taskDir, "work.apk")
+	if err := os.WriteFile(apkPath, []byte("apk"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.EncodeConcreteDriverConfig(&TaskConfig{
+		Package:   "com.example.workload",
+		Service:   ".WorkService",
+		Install:   true,
+		APKPath:   "work.apk",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Privilege: "root",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := driver.StartTask(config); err != nil {
+		t.Fatal(err)
+	}
+	if err := driver.StopTask(config.ID, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	requests := brokerRequests()
+	if len(requests) != 3 {
+		t.Fatalf("bridge requests = %v, want install, start, and stop", requests)
+	}
+	wantActions := []string{"install_package", "start_service", "stop_service"}
+	for index, request := range requests {
+		if request["action"] != wantActions[index] {
+			t.Fatalf("action %d = %#v, want %q", index, request["action"], wantActions[index])
+		}
+		if request["backend"] != "root" {
+			t.Fatalf("backend = %#v, want root", request["backend"])
+		}
+	}
+	if requests[0]["apk_path"] != apkPath {
+		t.Fatalf("apk_path = %#v, want %q", requests[0]["apk_path"], apkPath)
+	}
+}
+
+func TestRejectsUnknownPrivilege(t *testing.T) {
+	socket, brokerRequests := startTestBroker(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	driver := New(ctx, hclog.NewNullLogger(), bridge.New(socket))
+	config := &drivers.TaskConfig{ID: "invalid-privilege", Name: "service", AllocDir: t.TempDir()}
+	if err := config.EncodeConcreteDriverConfig(&TaskConfig{
+		Package:   "com.example.workload",
+		Service:   ".WorkService",
+		Install:   false,
+		Privilege: "unknown",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := driver.StartTask(config); err == nil {
+		t.Fatal("expected an unknown privilege value to be rejected")
+	}
+	if requests := brokerRequests(); len(requests) != 0 {
+		t.Fatalf("bridge requests = %v, want none", requests)
 	}
 }
 
@@ -129,7 +209,7 @@ func TestResolveArtifactPathConfinesAPKToAllocation(t *testing.T) {
 	}
 }
 
-func startTestBroker(t *testing.T) (string, func() []string) {
+func startTestBroker(t *testing.T) (string, func() []map[string]any) {
 	t.Helper()
 	dir, err := os.MkdirTemp("/tmp", "nomad-droid-test-")
 	if err != nil {
@@ -145,7 +225,7 @@ func startTestBroker(t *testing.T) (string, func() []string) {
 
 	var stateMu sync.Mutex
 	running := false
-	var actions []string
+	var requests []map[string]any
 	go func() {
 		for {
 			conn, acceptErr := listener.Accept()
@@ -161,7 +241,7 @@ func startTestBroker(t *testing.T) (string, func() []string) {
 				}
 				action, _ := request["action"].(string)
 				stateMu.Lock()
-				actions = append(actions, action)
+				requests = append(requests, request)
 				switch action {
 				case "start_service":
 					running = true
@@ -179,10 +259,10 @@ func startTestBroker(t *testing.T) (string, func() []string) {
 			}()
 		}
 	}()
-	return path, func() []string {
+	return path, func() []map[string]any {
 		stateMu.Lock()
 		defer stateMu.Unlock()
-		return append([]string(nil), actions...)
+		return append([]map[string]any(nil), requests...)
 	}
 }
 

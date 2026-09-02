@@ -4,10 +4,10 @@ Nomad Droid 将 Android 设备接入 Nomad 集群，并以内置任务驱动运�
 
 | 驱动 | 用途 | 执行身份 |
 | --- | --- | --- |
-| `android` | 安装 APK，以及检查、启动和停止指定的 Android Service | Shizuku 的 `shell` 或 `root` 用户 |
+| `android` | 安装 APK，以及检查、启动和停止指定的 Android Service | Job 选择的 Shizuku `shell`/`root` 或直接 `su` root 用户 |
 | `termux` | 在 Termux 环境中执行普通命令 | Termux 应用用户 |
 
-两类驱动相互独立。`termux` 驱动不会通过 Shizuku 执行命令；Shizuku Broker 也不接受任意 Shell，只提供 APK 和 Android Service 生命周期所需的固定操作。
+两类驱动相互独立。`termux` 驱动不会通过 Shizuku 或 root 执行命令；Shizuku Broker 和 root 适配都不接受任意 Shell，只提供 APK 和 Android Service 生命周期所需的固定操作。
 
 ## 1. 使用前准备
 
@@ -16,10 +16,11 @@ Nomad Droid 将 Android 设备接入 Nomad 集群，并以内置任务驱动运�
 - Android 12 或更高版本；
 - ARM64 架构；
 - 能够访问 Nomad Server 的 RPC 端口；
-- 使用 `android` 驱动时，安装并启动 Shizuku；
+- 使用 `android` 驱动并且未填写 `privilege` 或将 `privilege` 设为 `shizuku` 时，安装并启动 Shizuku；
+- 使用 `android` 驱动并将 `privilege` 设为 `root` 时，设备需要提供可授权给 Nomad Droid 的 `su`；
 - 使用 `termux` 驱动时，安装 Termux `0.109` 或更高版本。
 
-只使用一种驱动时，只需配置对应的 Shizuku 或 Termux。
+`android` 驱动只需配置 Job 选择的 Shizuku 或直接 Root 权限。`termux` 驱动只需配置 Termux。
 
 ### Nomad Server
 
@@ -70,7 +71,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 3. 配置 Shizuku
 
-本节仅用于 `android` 驱动。
+本节仅用于 `android` 驱动中未填写 `privilege` 或将 `privilege` 设为 `shizuku` 的任务。
 
 1. 安装 Shizuku，并按照 Shizuku 应用内的说明通过无线调试、ADB 或 Root 启动服务。
 2. 打开 Nomad Droid。
@@ -86,13 +87,49 @@ permission=granted · broker=connected
 
 状态还会显示 Shizuku 和 Broker 的实际 UID，便于确认任务以 `shell` 还是 `root` 身份执行。
 
-设备重启后，Nomad Droid 可以恢复 Nomad Client，但 Shizuku 本身也必须重新可用。在 Shizuku Binder 恢复前，节点可以重新连接，`android` 驱动会保持不健康状态。
+设备重启后，Nomad Droid 可以恢复 Nomad Client，但 Shizuku 本身也必须重新可用。在 Shizuku Binder 恢复前，如果直接 Root 权限也未就绪，节点可以重新连接，但 `android` 驱动会保持不健康状态。
 
-## 4. 配置 Termux Shell
+## 4. 配置直接 Root 权限
+
+本节仅用于 `android` 驱动中将 `privilege` 设为 `root` 的任务。直接 Root 权限指 Nomad Droid 调用设备提供的 `su`，并以 UID `0` 执行固定的 APK 和 Android Service 生命周期命令。
+
+1. 打开 Nomad Droid。
+2. 在 **Root** 区域点击 **Check / grant root access**。
+3. 在设备的 root 权限管理页面中允许 Nomad Droid 使用 `su`。
+4. 确认状态中出现：
+
+```text
+Root access is ready · su=available · uid=0 · permission=granted
+```
+
+需要使用 root 的 Job 必须明确配置：
+
+```hcl
+config {
+  privilege = "root"
+  package   = "com.example.workload"
+  service   = ".NomadWorkService"
+}
+```
+
+没有填写 `privilege` 时，`android` 驱动继续使用 `shizuku`。root 适配只接受结构化的包名、Service 名、APK 路径和 SHA-256，不提供任意 Shell 字段。
+
+如果 Nomad 集群还包含未启用直接 Root 权限的 Android 设备，root Job 需要增加节点约束：
+
+```hcl
+constraint {
+  attribute = "${attr.driver.android.root}"
+  value     = "true"
+}
+```
+
+设备重启后，如果 root 权限管理程序保留了授权，Nomad Droid 会重新检查 UID。授权被撤销时，root 任务会失败，节点属性 `driver.android.root` 会恢复为 `false`。
+
+## 5. 配置 Termux Shell
 
 本节仅用于 `termux` 驱动。
 
-### 4.1 允许外部应用调用 Termux
+### 5.1 允许外部应用调用 Termux
 
 在 Termux 中编辑：
 
@@ -118,7 +155,7 @@ grep '^allow-external-apps=' ~/.termux/termux.properties
 allow-external-apps=true
 ```
 
-### 4.2 授予 RUN_COMMAND 权限
+### 5.2 授予 RUN_COMMAND 权限
 
 1. 打开 Nomad Droid。
 2. 在 **Termux shell** 区域点击 **Grant access**。
@@ -126,7 +163,7 @@ allow-external-apps=true
 
 如果系统没有弹出权限窗口，请打开 Android 的应用详情页，进入 **Nomad Droid → 权限 → 其他权限**，手动允许该权限。也可以点击 **Termux app settings / install** 打开 Termux 的应用详情页或安装页面。
 
-### 4.3 测试配置
+### 5.3 测试配置
 
 点击 **Test setup**。测试完成后，状态中应出现：
 
@@ -136,7 +173,7 @@ permission=granted · service=available · setup=ready
 
 只有测试成功后，`termux` 驱动才会向 Nomad 报告为健康状态。
 
-## 5. 配置保活
+## 6. 配置保活
 
 Nomad Client 需要持续保持 RPC 会话和心跳，不能依赖推送消息代替。因此，在启动 Agent 前完成以下设置：
 
@@ -158,7 +195,7 @@ Agent 运行时，应用会：
 
 Termux 运行在另一个应用进程中，Nomad Droid 持有的 Wake Lock 不能阻止系统或厂商策略回收 Termux。因此，运行 `termux` 任务时也要单独配置 Termux 的电池策略。
 
-## 6. 启动 Nomad Client
+## 7. 启动 Nomad Client
 
 在 **Nomad client** 区域填写：
 
@@ -178,7 +215,7 @@ Termux 运行在另一个应用进程中，Nomad Droid 持有的 Wake Lock 不�
 
 运行期间修改输入框不会热加载配置。需要应用新配置时，先点击 **Stop**，再点击 **Start agent**。
 
-## 7. 在 Nomad Server 上确认节点
+## 8. 在 Nomad Server 上确认节点
 
 在已配置 Nomad CLI 的机器上执行：
 
@@ -197,11 +234,12 @@ nomad node status -verbose <node-id>
 - 节点状态为 `ready`；
 - Node Class 为 `android`；
 - 节点属性包含 `nomad.droid.base = true`；
+- 节点属性 `driver.android.shizuku` 和 `driver.android.root` 显示两种特权实现是否可用；
 - 已配置的 `android` 或 `termux` 驱动为健康状态。
 
 Nomad CLI 通常连接 Nomad HTTP API；Nomad Droid 输入框连接的是 Server RPC 地址。两者的地址和端口用途不同。
 
-## 8. 运行 Android Service 任务
+## 9. 运行 Android Service 任务
 
 示例文件：[`examples/android-service.nomad.hcl`](examples/android-service.nomad.hcl)
 
@@ -224,6 +262,7 @@ Nomad CLI 通常连接 Nomad HTTP API；Nomad Droid 输入框连接的是 Server
 | `apk_path` | 安装时 | APK 在 Nomad Allocation 目录内的路径 |
 | `sha256` | 安装时 | APK 的小写 SHA-256 摘要 |
 | `replace` | 否 | 安装时是否向 `pm install` 传入 `-r`，默认 `true` |
+| `privilege` | 否 | `shizuku` 或 `root`；未填写时使用 `shizuku` |
 
 `artifact.source` 必须是手机可以访问的下载地址。修改后执行：
 
@@ -241,7 +280,7 @@ nomad alloc status <allocation-id>
 
 `android` 驱动只管理 APK 和 Android Service 生命周期。它使用宿主网络，不提供文件系统隔离、任务日志采集、`nomad alloc exec` 或 Nomad Service Registration。
 
-## 9. 运行 Termux Shell 任务
+## 10. 运行 Termux Shell 任务
 
 示例文件：[`examples/termux-shell.nomad.hcl`](examples/termux-shell.nomad.hcl)
 
@@ -288,7 +327,7 @@ Nomad 任务的 `env` 会在执行前导出。`command`、`args`、环境变量�
 
 停止任务时，驱动先向包装进程组发送 `TERM`；如果进程未在 Nomad 提供的停止超时内退出，再发送 `KILL`。
 
-## 10. 停止任务或 Agent
+## 11. 停止任务或 Agent
 
 停止 Nomad Job：
 
@@ -302,7 +341,7 @@ nomad job stop <job-name>
 2. 点击 **Stop**。
 3. 确认状态变为 `Stopped`，前台服务通知消失，并且 **Keep alive** 显示 `restore=off`。
 
-## 11. 故障排查
+## 12. 故障排查
 
 ### 节点没有出现在 `nomad node status`
 
@@ -314,11 +353,21 @@ nomad job stop <job-name>
 
 ### `android` 驱动不健康
 
+使用 Shizuku 时：
+
 1. 确认 Shizuku 应用显示服务正在运行。
 2. 确认 Nomad Droid 状态包含 `permission=granted`。
 3. 点击 **Connect broker**。
 4. 确认状态包含 `broker=connected`。
 5. 如果设备刚重启，先恢复 Shizuku，再等待 Nomad Droid 重新绑定。
+
+使用 root 时：
+
+1. 确认设备中存在可执行的 `su`。
+2. 点击 **Check / grant root access** 并允许授权。
+3. 确认 Root 状态包含 `uid=0` 和 `permission=granted`。
+4. 确认 Job 的 `config` 中设置了 `privilege = "root"`。
+5. 使用 `nomad node status -verbose <node-id>` 确认 `driver.android.root = true`。
 
 ### `termux` 驱动不健康
 
@@ -350,7 +399,7 @@ Termux 日志只在命令结束后提交。如果输出超过 Termux 接口允�
 [nomad-droid] Termux truncated command output
 ```
 
-## 12. 开发验证
+## 13. 开发验证
 
 执行完整的 Android 构建检查：
 
@@ -374,14 +423,14 @@ app/build/outputs/apk/release/
 
 Release APK 默认未签名，分发前需要使用自己的签名配置签名。
 
-## 13. 项目目录
+## 14. 项目目录
 
-- `app/`：Android UI、前台服务、加密 Token 存储、Shizuku Broker，以及 Termux 命令结果和状态桥接；
+- `app/`：Android UI、前台服务、加密 Token 存储、Shizuku Broker、直接 root 适配，以及 Termux 命令结果和状态桥接；
 - `native/nomadcore/`：嵌入式 Nomad Client、`android` 和 `termux` 驱动、本机 UID 鉴权桥接及 JNI 导出；
 - `native/build-android.sh`：使用固定 NDK 版本构建 ARM64 `c-shared` 库；
 - `examples/`：可修改后提交到 Nomad Server 的 Job 示例。
 
-## 14. 参考资料
+## 15. 参考资料
 
 - [Nomad Job Specification](https://developer.hashicorp.com/nomad/docs/job-specification)
 - [Shizuku 使用说明](https://shizuku.rikka.app/guide/setup/)

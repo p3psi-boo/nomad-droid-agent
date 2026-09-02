@@ -21,12 +21,13 @@ job "android-service" {
       }
 
       config {
-        package  = "com.example.workload"
-        service  = ".NomadWorkService"
-        install  = true
-        replace  = true
-        apk_path = "local/workload.apk"
-        sha256   = "REPLACE_WITH_THE_APK_SHA256"
+        package   = "com.example.workload"
+        service   = ".NomadWorkService"
+        privilege = "shizuku"
+        install   = true
+        replace   = true
+        apk_path  = "local/workload.apk"
+        sha256    = "REPLACE_WITH_THE_APK_SHA256"
       }
     }
   }

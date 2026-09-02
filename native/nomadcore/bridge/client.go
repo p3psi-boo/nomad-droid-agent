@@ -30,6 +30,10 @@ type Response struct {
 	Truncated         bool   `json:"truncated,omitempty"`
 	StartedAt         int64  `json:"started_at,omitempty"`
 	CompletedAt       int64  `json:"completed_at,omitempty"`
+	ShizukuReady      bool   `json:"shizuku_ready,omitempty"`
+	ShizukuUID        int    `json:"shizuku_uid,omitempty"`
+	RootReady         bool   `json:"root_ready,omitempty"`
+	RootUID           int    `json:"root_uid,omitempty"`
 }
 
 func New(address string) *Client {

@@ -6,6 +6,7 @@ import android.net.LocalSocket
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.os.Process
+import com.nomad.droid.root.RootManager
 import com.nomad.droid.shizuku.ShizukuManager
 import com.nomad.droid.termux.TermuxManager
 import org.json.JSONObject
@@ -58,12 +59,19 @@ object GoBridgeServer {
     private fun dispatch(request: JSONObject): JSONObject {
         val action = request.getString("action")
         when (action) {
+            "privilege_status" -> return privilegeStatus()
             "termux_status" -> return TermuxManager.statusJson()
             "termux_start" -> return TermuxManager.start(request)
             "termux_stop" -> return TermuxManager.stop(request)
             "termux_inspect" -> return TermuxManager.inspect(request.getString("task_id"))
             "termux_result" -> return TermuxManager.result(request.getString("task_id"))
             "termux_destroy" -> return TermuxManager.destroy(request.getString("task_id"))
+        }
+
+        when (request.optString("backend", BACKEND_SHIZUKU)) {
+            BACKEND_ROOT -> return RootManager.execute(request)
+            BACKEND_SHIZUKU -> Unit
+            else -> return failure("Unsupported privilege backend: ${request.optString("backend")}")
         }
 
         val broker = ShizukuManager.broker() ?: return failure("Shizuku broker is unavailable")
@@ -98,6 +106,20 @@ object GoBridgeServer {
         return result.toJson()
     }
 
+    private fun privilegeStatus(): JSONObject {
+        val shizuku = ShizukuManager.state()
+        val root = RootManager.state()
+        val ready = shizuku.brokerConnected || root.permissionGranted
+        return JSONObject()
+            .put("ok", ready)
+            .put("exit_code", if (ready) 0 else 1)
+            .put("output", "Shizuku: ${shizuku.message}; root: ${root.message}")
+            .put("shizuku_ready", shizuku.brokerConnected)
+            .put("shizuku_uid", shizuku.brokerUid ?: -1)
+            .put("root_ready", root.permissionGranted)
+            .put("root_uid", root.uid ?: -1)
+    }
+
     private fun Bundle.toJson(): JSONObject = JSONObject().also { json ->
         keySet().forEach { key ->
             val value = when (key) {
@@ -114,4 +136,7 @@ object GoBridgeServer {
         .put("ok", false)
         .put("exit_code", 1)
         .put("output", message)
+
+    private const val BACKEND_SHIZUKU = "shizuku"
+    private const val BACKEND_ROOT = "root"
 }

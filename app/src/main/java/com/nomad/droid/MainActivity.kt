@@ -18,6 +18,7 @@ import android.widget.TextView
 import com.nomad.droid.agent.AgentConfig
 import com.nomad.droid.agent.AgentConfigStore
 import com.nomad.droid.agent.AgentForegroundService
+import com.nomad.droid.root.RootManager
 import com.nomad.droid.shizuku.ShizukuManager
 import com.nomad.droid.termux.TermuxContract
 import com.nomad.droid.termux.TermuxManager
@@ -29,6 +30,7 @@ class MainActivity : Activity() {
     private lateinit var datacenter: EditText
     private lateinit var introToken: EditText
     private lateinit var shizukuStatus: TextView
+    private lateinit var rootStatus: TextView
     private lateinit var termuxStatus: TextView
     private lateinit var batteryStatus: TextView
     private lateinit var agentStatus: TextView
@@ -36,6 +38,9 @@ class MainActivity : Activity() {
 
     private val shizukuListener: (ShizukuManager.State) -> Unit = { state ->
         runOnUiThread { renderShizuku(state) }
+    }
+    private val rootListener: (RootManager.State) -> Unit = { state ->
+        runOnUiThread { renderRoot(state) }
     }
     private val termuxListener: (TermuxManager.State) -> Unit = { state ->
         runOnUiThread { renderTermux(state) }
@@ -56,6 +61,7 @@ class MainActivity : Activity() {
         datacenter = findViewById(R.id.datacenter)
         introToken = findViewById(R.id.introToken)
         shizukuStatus = findViewById(R.id.shizukuStatus)
+        rootStatus = findViewById(R.id.rootStatus)
         termuxStatus = findViewById(R.id.termuxStatus)
         batteryStatus = findViewById(R.id.batteryStatus)
         agentStatus = findViewById(R.id.agentStatus)
@@ -67,6 +73,9 @@ class MainActivity : Activity() {
         }
         findViewById<Button>(R.id.connectBroker).setOnClickListener {
             ShizukuManager.bindBroker()
+        }
+        findViewById<Button>(R.id.grantRoot).setOnClickListener {
+            RootManager.requestAccess()
         }
         findViewById<Button>(R.id.grantTermux).setOnClickListener {
             requestTermuxPermission()
@@ -86,6 +95,7 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.stopAgent).setOnClickListener { stopAgent() }
 
         ShizukuManager.addListener(shizukuListener)
+        RootManager.addListener(rootListener)
         TermuxManager.addListener(termuxListener)
         requestNotificationPermission()
         renderBatteryState()
@@ -96,12 +106,14 @@ class MainActivity : Activity() {
         super.onResume()
         renderRuntimeState()
         renderShizuku(ShizukuManager.state())
+        renderRoot(RootManager.state())
         renderTermux(TermuxManager.state())
         renderBatteryState()
     }
 
     override fun onDestroy() {
         ShizukuManager.removeListener(shizukuListener)
+        RootManager.removeListener(rootListener)
         TermuxManager.removeListener(termuxListener)
         super.onDestroy()
     }
@@ -155,6 +167,17 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.grantShizuku).isEnabled = state.binderAlive && !state.permissionGranted
         findViewById<Button>(R.id.connectBroker).isEnabled =
             state.permissionGranted && !state.brokerConnected
+    }
+
+    private fun renderRoot(state: RootManager.State) {
+        val details = buildList {
+            add(state.message)
+            if (state.suAvailable) add("su=available")
+            state.uid?.let { add("uid=$it") }
+            if (state.permissionGranted) add("permission=granted")
+        }
+        rootStatus.text = details.joinToString(" · ")
+        findViewById<Button>(R.id.grantRoot).isEnabled = !state.checking
     }
 
     private fun renderTermux(state: TermuxManager.State) {
