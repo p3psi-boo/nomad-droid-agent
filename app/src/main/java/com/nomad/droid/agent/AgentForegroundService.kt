@@ -12,13 +12,15 @@ import android.os.IBinder
 import android.os.PowerManager
 import com.nomad.droid.MainActivity
 import com.nomad.droid.R
+import com.nomad.droid.log.AppLogger
 import com.nomad.droid.runtime.NomadRuntime
 import com.nomad.droid.shizuku.ShizukuManager
 import org.json.JSONObject
 import java.util.concurrent.Executors
 
 class AgentForegroundService : Service() {
-    private val runtimeExecutor = Executors.newSingleThreadExecutor()
+    private val startExecutor = Executors.newSingleThreadExecutor()
+    private val stopExecutor = Executors.newSingleThreadExecutor()
     private lateinit var store: AgentConfigStore
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -30,7 +32,7 @@ class AgentForegroundService : Service() {
             startForeground(
                 NOTIFICATION_ID,
                 notification(getString(R.string.agent_notification_connecting)),
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         } else {
             startForeground(NOTIFICATION_ID, notification(getString(R.string.agent_notification_connecting)))
@@ -48,8 +50,9 @@ class AgentForegroundService : Service() {
 
     override fun onDestroy() {
         releaseWakeLock()
-        runtimeExecutor.execute { runCatching { NomadRuntime.stop() } }
-        runtimeExecutor.shutdown()
+        stopExecutor.execute { runCatching { NomadRuntime.stop() } }
+        startExecutor.shutdown()
+        stopExecutor.shutdown()
         super.onDestroy()
     }
 
@@ -58,44 +61,75 @@ class AgentForegroundService : Service() {
     private fun startAgent() {
         store.desiredRunning = true
         store.runtimeStatus = "Starting"
+        NomadTileService.requestTileUpdate(this)
         acquireWakeLock()
         ShizukuManager.bindBroker()
+        AppLogger.i("AgentService", "Starting Nomad Agent service...")
 
-        runtimeExecutor.execute {
+        startExecutor.execute {
+            if (!store.desiredRunning) {
+                AppLogger.i("AgentService", "Startup aborted: Stop was requested.")
+                return@execute
+            }
+
             val result = runCatching {
                 val current = JSONObject(NomadRuntime.status())
                 val currentState = current.optString("state")
                 if (currentState == "running" || currentState == "starting") {
-                    store.runtimeStatus = currentState.replaceFirstChar { it.uppercase() }
+                    val statusText = currentState.replaceFirstChar { it.uppercase() }
+                    store.runtimeStatus = statusText
                     store.lastResult = current.toString(2)
                     updateNotification("Nomad client: $currentState")
+                    NomadTileService.requestTileUpdate(this)
+                    AppLogger.ok("AgentService", "Nomad runtime is $currentState", current.toString(2))
                     return@runCatching
                 }
 
                 val config = store.load()
                 config.validate().getOrThrow()
+                AppLogger.i("AgentService", "Connecting to ${config.serverAddress} as node '${config.nodeName}'...")
                 val startCode = NomadRuntime.start(this, config)
+
+                if (!store.desiredRunning) {
+                    AppLogger.i("AgentService", "Startup cancelled by user while connecting.")
+                    NomadRuntime.stop()
+                    return@runCatching
+                }
+
                 if (startCode != 0) {
                     val failedStatus = JSONObject(NomadRuntime.status())
-                    error(
-                        failedStatus.optString(
-                            "error",
-                            "Native Nomad start failed with code $startCode",
-                        ),
-                    )
+                    val errMsg = failedStatus.optString("error", "Native Nomad start failed with code $startCode")
+                    AppLogger.e("AgentService", "Start failed: $errMsg")
+                    error(errMsg)
                 }
                 val status = JSONObject(NomadRuntime.status())
                 val state = status.optString("state", "running")
-                store.runtimeStatus = state.replaceFirstChar { it.uppercase() }
+                val statusText = state.replaceFirstChar { it.uppercase() }
+                store.runtimeStatus = statusText
                 store.lastResult = status.toString(2)
-                updateNotification("Nomad client: $state")
+                updateNotification("Connected to ${config.serverAddress} (${config.nodeName})")
+                NomadTileService.requestTileUpdate(this)
+                AppLogger.ok("AgentService", "Agent successfully started and joined cluster!", status.toString(2))
             }
             result.onFailure {
+                if (!store.desiredRunning) {
+                    store.runtimeStatus = "Stopped"
+                    store.lastResult = "Nomad agent startup was cancelled."
+                    releaseWakeLock()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@onFailure
+                }
+
                 store.desiredRunning = false
                 store.runtimeStatus = "Failed"
-                store.lastResult = it.message ?: it.javaClass.simpleName
-                updateNotification("Nomad client failed")
+                val err = it.message ?: it.javaClass.simpleName
+                store.lastResult = err
+                updateNotification("Nomad client failed: $err")
+                NomadTileService.requestTileUpdate(this)
+                AppLogger.e("AgentService", "Agent encountered error: $err")
                 releaseWakeLock()
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
@@ -103,10 +137,16 @@ class AgentForegroundService : Service() {
 
     private fun stopAgent() {
         store.desiredRunning = false
-        runtimeExecutor.execute {
+        store.runtimeStatus = "Stopping"
+        NomadTileService.requestTileUpdate(this)
+        AppLogger.i("AgentService", "Stopping Nomad Agent service immediately...")
+
+        stopExecutor.execute {
             runCatching { NomadRuntime.stop() }
             store.runtimeStatus = "Stopped"
             store.lastResult = "Nomad agent stopped."
+            NomadTileService.requestTileUpdate(this)
+            AppLogger.i("AgentService", "Nomad agent stopped.")
             releaseWakeLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -116,8 +156,6 @@ class AgentForegroundService : Service() {
     @SuppressLint("WakelockTimeout")
     @Synchronized
     private fun acquireWakeLock() {
-        // The user-selected agent lifecycle has no fixed completion time.
-        // Every stop, failure, and destruction path releases this lock.
         val current = wakeLock
         if (current?.isHeld == true) return
         wakeLock = getSystemService(PowerManager::class.java)

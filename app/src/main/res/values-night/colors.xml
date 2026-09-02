@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Color Tokens (Dark) -->
+    <color name="md_theme_primary">#CBBEFF</color>
+    <color name="md_theme_onPrimary">#2E009C</color>
+    <color name="md_theme_primaryContainer">#4518C6</color>
+    <color name="md_theme_onPrimaryContainer">#E6DEFF</color>
+    
+    <color name="md_theme_secondary">#CAC3DC</color>
+    <color name="md_theme_onSecondary">#322E41</color>
+    <color name="md_theme_secondaryContainer">#484458</color>
+    <color name="md_theme_onSecondaryContainer">#E6DFF9</color>
+    
+    <color name="md_theme_tertiary">#EDB8CC</color>
+    <color name="md_theme_onTertiary">#492534</color>
+    <color name="md_theme_tertiaryContainer">#623B4B</color>
+    <color name="md_theme_onTertiaryContainer">#FFD8E7</color>
+    
+    <color name="md_theme_error">#FFB4AB</color>
+    <color name="md_theme_onError">#690005</color>
+    <color name="md_theme_errorContainer">#93000A</color>
+    <color name="md_theme_onErrorContainer">#FFDAD6</color>
+    
+    <color name="md_theme_background">#141218</color>
+    <color name="md_theme_onBackground">#E6E0E9</color>
+    
+    <color name="md_theme_surface">#141218</color>
+    <color name="md_theme_onSurface">#E6E0E9</color>
+    <color name="md_theme_surfaceVariant">#49454E</color>
+    <color name="md_theme_onSurfaceVariant">#CAC4D0</color>
+    
+    <color name="md_theme_surfaceContainerLowest">#0F0D13</color>
+    <color name="md_theme_surfaceContainerLow">#1D1B20</color>
+    <color name="md_theme_surfaceContainer">#211F26</color>
+    <color name="md_theme_surfaceContainerHigh">#2C2930</color>
+    <color name="md_theme_surfaceContainerHighest">#36343B</color>
+    
+    <color name="md_theme_outline">#948F9A</color>
+    <color name="md_theme_outlineVariant">#49454E</color>
+
+    <!-- Harmonized Status Badges & Chips (Dark) -->
+    <color name="md3_status_success_container">#003921</color>
+    <color name="md3_status_success_text">#72DDA3</color>
+    <color name="md3_status_success_border">#006D44</color>
+    
+    <color name="md3_status_warning_container">#412300</color>
+    <color name="md3_status_warning_text">#FFB95B</color>
+    <color name="md3_status_warning_border">#724100</color>
+
+    <color name="md3_status_error_container">#410002</color>
+    <color name="md3_status_error_text">#FFB4AB</color>
+    <color name="md3_status_error_border">#93000A</color>
+
+    <color name="md3_status_neutral_container">#27242C</color>
+    <color name="md3_status_neutral_text">#CAC4D0</color>
+    <color name="md3_status_neutral_border">#49454E</color>
+
+    <!-- Deprecated fallbacks -->
+    <color name="nomad_primary">#CBBEFF</color>
+    <color name="nomad_primary_dark">#4518C6</color>
+    <color name="nomad_background">#141218</color>
+    <color name="nomad_surface">#211F26</color>
+    <color name="nomad_border">#49454E</color>
+    <color name="nomad_text">#E6E0E9</color>
+    <color name="nomad_muted">#CAC4D0</color>
+</resources>

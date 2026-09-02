@@ -52,25 +52,29 @@ var mobileRuntime = &nomadRuntime{state: "stopped"}
 
 func (r *nomadRuntime) Start(raw string) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.client != nil {
+		r.mu.Unlock()
 		return fmt.Errorf("Nomad client is already running")
 	}
 
 	var cfg runtimeConfig
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		r.mu.Unlock()
 		return fmt.Errorf("decode runtime config: %w", err)
 	}
 	if err := cfg.validate(); err != nil {
+		r.mu.Unlock()
 		return err
 	}
 	if err := ensureDirectories(cfg); err != nil {
+		r.mu.Unlock()
 		return err
 	}
 
 	r.state = "starting"
 	r.err = nil
 	r.config = cfg
+	r.mu.Unlock()
 
 	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:   "nomad-droid",
@@ -88,15 +92,19 @@ func (r *nomadRuntime) Start(raw string) error {
 		SupportedVersions: loader.AgentSupportedApiVersions,
 	})
 	if err != nil {
+		r.mu.Lock()
 		r.state = "failed"
 		r.err = err
+		r.mu.Unlock()
 		return fmt.Errorf("create Android plugin loader: %w", err)
 	}
 
 	artifactConfig, err := clientconfig.ArtifactConfigFromAgent(structconfig.DefaultArtifactConfig())
 	if err != nil {
+		r.mu.Lock()
 		r.state = "failed"
 		r.err = err
+		r.mu.Unlock()
 		return fmt.Errorf("create artifact config: %w", err)
 	}
 
@@ -116,7 +124,7 @@ func (r *nomadRuntime) Start(raw string) error {
 	clientCfg.MaxKillTimeout = 30 * time.Second
 	clientCfg.Options = map[string]string{
 		"driver.allowlist":      androiddriver.PluginName + "," + termuxdriver.PluginName,
-		"fingerprint.allowlist": "arch,cpu,host,memory,network,nomad,signal,storage",
+		"fingerprint.allowlist": "arch,cpu,host,memory,network,nomad,signal",
 	}
 	clientCfg.Node = &structs.Node{
 		Name:       cfg.NodeName,
@@ -130,27 +138,48 @@ func (r *nomadRuntime) Start(raw string) error {
 		Meta: map[string]string{"nomad-droid.version": "0.1.0"},
 	}
 
+	r.mu.RLock()
+	aborted := (r.state == "stopping" || r.state == "stopped")
+	r.mu.RUnlock()
+	if aborted {
+		return fmt.Errorf("startup aborted by user")
+	}
+
 	nomadClient, err := client.NewClient(clientCfg, nil, nil, noopServiceRegistration{}, nil)
 	if err != nil {
+		r.mu.Lock()
 		r.state = "failed"
 		r.err = err
+		r.mu.Unlock()
 		return fmt.Errorf("start Nomad client: %w", err)
+	}
+
+	r.mu.Lock()
+	if r.state == "stopping" || r.state == "stopped" {
+		r.mu.Unlock()
+		_ = nomadClient.Shutdown()
+		return fmt.Errorf("startup aborted by user")
 	}
 	r.client = nomadClient
 	r.state = "running"
+	r.mu.Unlock()
 	return nil
 }
 
 func (r *nomadRuntime) Stop() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.client != nil {
-		if err := r.client.Shutdown(); err != nil {
-			r.err = err
-		}
-	}
+	c := r.client
 	r.client = nil
 	r.state = "stopped"
+	r.mu.Unlock()
+
+	if c != nil {
+		if err := c.Shutdown(); err != nil {
+			r.mu.Lock()
+			r.err = err
+			r.mu.Unlock()
+		}
+	}
 }
 
 func (r *nomadRuntime) Status() runtimeStatus {

@@ -195,25 +195,31 @@ Agent 运行时，应用会：
 
 Termux 运行在另一个应用进程中，Nomad Droid 持有的 Wake Lock 不能阻止系统或厂商策略回收 Termux。因此，运行 `termux` 任务时也要单独配置 Termux 的电池策略。
 
-## 7. 启动 Nomad Client
+## 7. 启动与管理 Nomad Client
 
-在 **Nomad client** 区域填写：
+### 7.1 仪表盘与配置
+
+在 **Cluster Configuration** 区域填写：
 
 | 字段 | 填写方式 |
 | --- | --- |
-| **Nomad server RPC address** | `host:port` 或 `[IPv6]:port`，例如 `10.0.0.10:4647` |
-| **Node name** | 以字母或数字开头，可包含字母、数字、点、下划线和连字符，例如 `pixel-01` |
-| **Datacenter** | 可包含字母、数字、下划线和连字符；示例任务使用 `android` |
-| **Client introduction token** | 集群要求客户端引入认证时填写，否则留空 |
+| **Nomad server RPC address** | `host:port` 或 `[IPv6]:port`，例如 `10.0.0.10:4647`（支持点击 **Ping RPC** 测试连通性） |
+| **Node name** | 字母/数字/点/下划线/连字符（支持点击 **Device Name** 自动填入当前设备机型） |
+| **Datacenter** | 数据中心标识，默认 `android` |
+| **Client introduction token** | 集群要求客户端引入认证时填写（支持明暗文切换与剪贴板一键粘贴） |
 
-点击 **Start agent**。启动成功后：
+- **多配置管理 (Profiles)**：点击顶部文件夹图标，可随时保存当前配置为命名 Profile，并在不同集群间一键切换；
+- **配置分享与导入**：点击顶部分享图标，可将当前配置导出为 JSON 或 `nomad-droid://import?...` 链接，或直接从剪贴板一键导入配置；
+- **一键体检诊断 (Diagnostics)**：点击顶部或环境卡片底部的 **Run Diagnostics**，系统会自动自检 RPC 端口连通性、Shizuku Broker、Root `su`、Termux probe 及电池优化策略，并输出友好诊断建议。
 
-- Agent 状态显示 `Running`；
-- **Last result** 显示启动结果；
-- 通知栏显示 Nomad Droid 正在运行；
-- **Keep alive** 状态显示 `restore=enabled`。
+### 7.2 启动与状态控制
 
-运行期间修改输入框不会热加载配置。需要应用新配置时，先点击 **Stop**，再点击 **Start agent**。
+在顶部 **Hero 状态卡片** 点击 **Start Agent**：
+- 节点状态变为 `RUNNING`（绿色徽章），显示已连接的目标 Server 与 Node ID；
+- 运行期间配置输入框会自动锁定为只读状态，防止误操作；
+- **下拉控制中心 (Quick Settings Tile)**：支持将 Nomad Droid 添加到 Android 快捷设置面板，下拉通知栏即可一键启停 Agent。
+
+需要修改配置时，先在顶部卡片点击 **Stop Agent**，解锁表单后编辑并重新启动。
 
 ## 8. 在 Nomad Server 上确认节点
 

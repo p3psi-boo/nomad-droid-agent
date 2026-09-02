@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rootScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/nomad_background"
+    android:background="?android:attr/colorBackground"
     android:clipToPadding="false"
     android:fillViewport="true">
 
@@ -11,368 +13,932 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="20dp"
-        android:paddingTop="24dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="40dp">
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="48dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Top Header Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:accessibilityHeading="true"
-            android:text="Nomad Droid"
-            android:textColor="@color/nomad_text"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="12dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/ic_nomad_droid" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:accessibilityHeading="true"
+                    android:text="@string/app_name"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_tagline"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnHeaderDiagnostics"
+                style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="@string/run_diagnostics"
+                app:icon="@drawable/ic_diagnostics"
+                app:iconTint="?attr/colorOnSecondaryContainer" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnHeaderProfiles"
+                style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/profiles_title"
+                app:icon="@drawable/ic_folder"
+                app:iconTint="?attr/colorOnSecondaryContainer" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnHeaderShare"
+                style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/share_config"
+                app:icon="@drawable/ic_share"
+                app:iconTint="?attr/colorOnSecondaryContainer" />
+        </LinearLayout>
+
+        <!-- 1. Hero Status Card (MD3 Filled Card with Primary Container) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/heroCard"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Android workload runtime · Basic"
-            android:textColor="@color/nomad_muted"
-            android:textSize="15sp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Shizuku"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/shizukuStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:accessibilityLiveRegion="polite"
-                android:layout_marginTop="8dp"
-                android:text="Checking…"
-                android:textColor="@color/nomad_muted"
-                android:textSize="14sp" />
+            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <Button
-                    android:id="@+id/grantShizuku"
-                    android:layout_width="0dp"
+                <!-- Chip Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Grant access" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/connectBroker"
-                    android:layout_width="0dp"
+                    <TextView
+                        android:id="@+id/heroStatusBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/badge_neutral"
+                        android:paddingStart="12dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="4dp"
+                        android:text="@string/status_stopped"
+                        android:textColor="@color/md3_status_neutral_text"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/heroDatacenterChip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/badge_neutral"
+                        android:paddingStart="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="3dp"
+                        android:text="dc: android"
+                        android:textColor="@color/md3_status_neutral_text"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/heroNodeChip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/badge_neutral"
+                        android:paddingStart="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="3dp"
+                        android:text="node: android-node"
+                        android:textColor="@color/md3_status_neutral_text"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Status Description -->
+                <TextView
+                    android:id="@+id/heroDescription"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="Connect broker" />
+                    android:layout_marginTop="12dp"
+                    android:accessibilityLiveRegion="polite"
+                    android:text="Nomad agent is stopped. Configure cluster settings and tap Start."
+                    android:textColor="?attr/colorOnPrimaryContainer"
+                    android:textSize="14sp" />
+
+                <!-- Action Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHeroToggle"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/start_agent"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="26dp"
+                    app:icon="@drawable/ic_play_arrow"
+                    app:iconGravity="textStart"
+                    app:iconSize="20dp" />
             </LinearLayout>
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <LinearLayout
+        <!-- 2. Environment & Drivers Card (MD3 Outlined Card) -->
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Root"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/rootStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:accessibilityLiveRegion="polite"
-                android:text="Root access has not been checked"
-                android:textColor="@color/nomad_muted"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Nomad Droid requests su access and exposes only fixed APK and Android Service lifecycle operations to the android driver."
-                android:textColor="@color/nomad_muted"
-                android:textSize="13sp" />
-
-            <Button
-                android:id="@+id/grantRoot"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Check / grant root access" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Termux shell"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/termuxStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:accessibilityLiveRegion="polite"
-                android:text="Checking…"
-                android:textColor="@color/nomad_muted"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="In Termux, set allow-external-apps=true in ~/.termux/termux.properties. Commands run as the Termux app user, independently of the Shizuku broker."
-                android:textColor="@color/nomad_muted"
-                android:textSize="13sp" />
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="20dp"
+            app:strokeColor="?attr/colorOutlineVariant">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <Button
-                    android:id="@+id/grantTermux"
-                    android:layout_width="0dp"
+                <!-- Header Row -->
+                <LinearLayout
+                    android:id="@+id/envHeaderLayout"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Grant access" />
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp">
 
-                <Button
-                    android:id="@+id/testTermux"
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:accessibilityHeading="true"
+                        android:text="@string/section_env_title"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/envSummaryBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/badge_green"
+                        android:paddingStart="10dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="3dp"
+                        android:text="Checking…"
+                        android:textColor="@color/md3_status_success_text"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/envExpandArrow"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginStart="8dp"
+                        android:contentDescription="Toggle Environment Card"
+                        android:src="@drawable/ic_expand_more"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <!-- Expandable Container -->
+                <LinearLayout
+                    android:id="@+id/envContentContainer"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="Test setup" />
+                    android:layout_marginTop="14dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Shizuku -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Shizuku Service"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/shizukuBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_neutral"
+                                android:paddingStart="8dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="2dp"
+                                android:text="Checking…"
+                                android:textColor="@color/md3_status_neutral_text"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/shizukuStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Checking Shizuku status…"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="13sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/grantShizuku"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/grant_access"
+                                android:textSize="12sp"
+                                app:cornerRadius="12dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/connectBroker"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:text="@string/connect_broker"
+                                android:textSize="12sp"
+                                app:cornerRadius="12dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        app:dividerColor="?attr/colorOutlineVariant" />
+
+                    <!-- Root -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Direct Root (su)"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/rootBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_neutral"
+                                android:paddingStart="8dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="2dp"
+                                android:text="Not Checked"
+                                android:textColor="@color/md3_status_neutral_text"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/rootStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Optional: Used when jobs explicitly declare privilege = 'root'."
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/grantRoot"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/grant_root"
+                            android:textSize="12sp"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        app:dividerColor="?attr/colorOutlineVariant" />
+
+                    <!-- Termux -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Termux Shell"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/termuxBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_neutral"
+                                android:paddingStart="8dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="2dp"
+                                android:text="Checking…"
+                                android:textColor="@color/md3_status_neutral_text"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/termuxStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Checking Termux setup…"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="13sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/grantTermux"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/grant_access"
+                                android:textSize="12sp"
+                                app:cornerRadius="12dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/testTermux"
+                                style="@style/Widget.Material3.Button.TonalButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/test_setup"
+                                android:textSize="12sp"
+                                app:cornerRadius="12dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/openTermuxSettings"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/termux_settings"
+                                android:textSize="12sp"
+                                app:cornerRadius="12dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        app:dividerColor="?attr/colorOutlineVariant" />
+
+                    <!-- Battery -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Keep Alive &amp; Doze"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/batteryBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_neutral"
+                                android:paddingStart="8dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="2dp"
+                                android:text="Checking…"
+                                android:textColor="@color/md3_status_neutral_text"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/batteryStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Checking battery optimization policy…"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openBatterySettings"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/battery_settings"
+                            android:textSize="12sp"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+
+                    <!-- Run All Diagnostics Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRunDiagnostics"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/run_diagnostics"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="24dp"
+                        app:icon="@drawable/ic_diagnostics"
+                        app:iconGravity="textStart" />
+                </LinearLayout>
             </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-            <Button
-                android:id="@+id/openTermuxSettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Termux app settings / install" />
-        </LinearLayout>
-
-        <LinearLayout
+        <!-- 3. Cluster Configuration Card (MD3 Outlined Card) -->
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Keep alive"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/batteryStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:accessibilityLiveRegion="polite"
-                android:text="Checking battery policy…"
-                android:textColor="@color/nomad_muted"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="While running, the foreground service holds a CPU wake lock and restores after reboot or app update. Exempt both Nomad Droid and Termux on devices with aggressive battery policies."
-                android:textColor="@color/nomad_muted"
-                android:textSize="13sp" />
-
-            <Button
-                android:id="@+id/openBatterySettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/battery_settings" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Nomad client"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:labelFor="@id/serverAddress"
-                android:text="@string/server_address_label"
-                android:textColor="@color/nomad_text" />
-
-            <EditText
-                android:id="@+id/serverAddress"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:importantForAutofill="no"
-                android:inputType="textUri"
-                android:maxLines="1" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:labelFor="@id/nodeName"
-                android:text="@string/node_name_label"
-                android:textColor="@color/nomad_text" />
-
-            <EditText
-                android:id="@+id/nodeName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:maxLines="1" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:labelFor="@id/datacenter"
-                android:text="@string/datacenter_label"
-                android:textColor="@color/nomad_text" />
-
-            <EditText
-                android:id="@+id/datacenter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:maxLines="1" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:labelFor="@id/introToken"
-                android:text="@string/intro_token_label"
-                android:textColor="@color/nomad_text" />
-
-            <EditText
-                android:id="@+id/introToken"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:importantForAutofill="no"
-                android:inputType="textPassword"
-                android:maxLines="1" />
-
-            <TextView
-                android:id="@+id/agentStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:accessibilityLiveRegion="polite"
-                android:layout_marginTop="10dp"
-                android:text="Stopped"
-                android:textColor="@color/nomad_muted"
-                android:textSize="14sp" />
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="20dp"
+            app:strokeColor="?attr/colorOutlineVariant">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <Button
-                    android:id="@+id/startAgent"
-                    android:layout_width="0dp"
+                <!-- Header Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Start agent" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/stopAgent"
-                    android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:accessibilityHeading="true"
+                        android:text="@string/section_config_title"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/profileBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/badge_neutral"
+                        android:paddingStart="8dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="3dp"
+                        android:text="Profile: Default"
+                        android:textColor="@color/md3_status_neutral_text"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Locked Notice Banner -->
+                <TextView
+                    android:id="@+id/configLockedNotice"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="Stop" />
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/badge_amber"
+                    android:padding="10dp"
+                    android:text="🔒 Configuration is locked while agent is running. Stop agent to modify."
+                    android:textColor="@color/md3_status_warning_text"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <!-- Server Address Field -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/serverAddressLayout"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/server_address_label"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusTopStart="12dp"
+                        app:helperText="e.g. 10.0.0.10:4647 or [2001:db8::1]:4647"
+                        app:helperTextEnabled="true">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/serverAddress"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:importantForAutofill="no"
+                            android:inputType="textUri"
+                            android:maxLines="1"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPingServer"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginBottom="16dp"
+                        android:text="@string/test_connection"
+                        android:textSize="12sp"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/serverAddressHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="?attr/colorError"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <!-- Node Name Field -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/nodeNameLayout"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/node_name_label"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusTopStart="12dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/nodeName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:importantForAutofill="no"
+                            android:inputType="text"
+                            android:maxLines="1"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAutoNodeName"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/auto_node_name"
+                        android:textSize="12sp"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
+
+                <!-- Datacenter Field -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/datacenterLayout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/datacenter_label"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/datacenter"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Introduction Token Field -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/introTokenLayout"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/intro_token_label"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusTopStart="12dp"
+                        app:endIconMode="password_toggle">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/introToken"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:importantForAutofill="no"
+                            android:inputType="textPassword"
+                            android:maxLines="1"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPasteToken"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/paste_token"
+                        android:textSize="12sp"
+                        app:cornerRadius="12dp" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <LinearLayout
+        <!-- 4. Live Activity & Logs Card (MD3 Outlined Card) -->
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:elevation="2dp"
-            android:orientation="vertical">
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="20dp"
+            app:strokeColor="?attr/colorOutlineVariant">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:accessibilityHeading="true"
-                android:text="Last result"
-                android:textColor="@color/nomad_text"
-                android:textSize="19sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/lastResult"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:accessibilityLiveRegion="polite"
-                android:layout_marginTop="8dp"
-                android:fontFamily="monospace"
-                android:text="No operations yet."
-                android:textColor="@color/nomad_muted"
-                android:textIsSelectable="true"
-                android:textSize="13sp" />
-        </LinearLayout>
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Header Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:accessibilityHeading="true"
+                        android:text="@string/section_logs_title"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCopyLogs"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/copy_logs"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnClearLogs"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/clear_logs"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Friendly Error Advice Banner -->
+                <TextView
+                    android:id="@+id/errorAdviceBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/badge_amber"
+                    android:padding="12dp"
+                    android:textColor="@color/md3_status_warning_text"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <!-- Active Allocations Container (Tonal Surface) -->
+                <com.google.android.material.card.MaterialCardView
+                    style="?attr/materialCardViewFilledStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Allocations &amp; Tasks"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/allocationsBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_neutral"
+                                android:paddingStart="8dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="2dp"
+                                android:text="0 active"
+                                android:textColor="@color/md3_status_neutral_text"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/allocationsListContainer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/allocationsEmptyText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="No active workloads assigned to this node."
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Monospace Log Container (Tonal Surface) -->
+                <com.google.android.material.card.MaterialCardView
+                    style="?attr/materialCardViewFilledStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <TextView
+                        android:id="@+id/logConsole"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:maxLines="16"
+                        android:padding="12dp"
+                        android:scrollbars="vertical"
+                        android:text="System ready. No operations yet."
+                        android:textColor="?attr/colorOnSurface"
+                        android:textIsSelectable="true"
+                        android:textSize="12sp" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
-</ScrollView>
+</androidx.core.widget.NestedScrollView>

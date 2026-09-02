@@ -1,12 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="nomad_primary">#5B3FD1</color>
-    <color name="nomad_primary_dark">#3B278F</color>
-    <color name="nomad_background">#F7F5FC</color>
-    <color name="nomad_surface">#FFFFFF</color>
-    <color name="nomad_text">#201A2B</color>
-    <color name="nomad_muted">#665F70</color>
-    <color name="nomad_success">#176B45</color>
-    <color name="nomad_warning">#8A4B00</color>
-</resources>
+    <!-- Material 3 Color Tokens (Light) -->
+    <color name="md_theme_primary">#5D38DF</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_primaryContainer">#E6DEFF</color>
+    <color name="md_theme_onPrimaryContainer">#1A0065</color>
+    
+    <color name="md_theme_secondary">#605B71</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#E6DFF9</color>
+    <color name="md_theme_onSecondaryContainer">#1D192B</color>
+    
+    <color name="md_theme_tertiary">#7C5263</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#FFD8E7</color>
+    <color name="md_theme_onTertiaryContainer">#311020</color>
+    
+    <color name="md_theme_error">#BA1A1A</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#FFDAD6</color>
+    <color name="md_theme_onErrorContainer">#410002</color>
+    
+    <color name="md_theme_background">#FDF7FF</color>
+    <color name="md_theme_onBackground">#1D1B20</color>
+    
+    <color name="md_theme_surface">#FDF7FF</color>
+    <color name="md_theme_onSurface">#1D1B20</color>
+    <color name="md_theme_surfaceVariant">#E6E0EC</color>
+    <color name="md_theme_onSurfaceVariant">#48454E</color>
+    
+    <color name="md_theme_surfaceContainerLowest">#FFFFFF</color>
+    <color name="md_theme_surfaceContainerLow">#F7F1FA</color>
+    <color name="md_theme_surfaceContainer">#F2EBF4</color>
+    <color name="md_theme_surfaceContainerHigh">#ECE5EE</color>
+    <color name="md_theme_surfaceContainerHighest">#E6DFE8</color>
+    
+    <color name="md_theme_outline">#7A757F</color>
+    <color name="md_theme_outlineVariant">#CAC4D0</color>
 
+    <!-- Harmonized Status Badges & Chips (Light) -->
+    <color name="md3_status_success_container">#D1F5DD</color>
+    <color name="md3_status_success_text">#05522F</color>
+    <color name="md3_status_success_border">#97E5B5</color>
+    
+    <color name="md3_status_warning_container">#FFEAC4</color>
+    <color name="md3_status_warning_text">#724100</color>
+    <color name="md3_status_warning_border">#FFC86B</color>
+
+    <color name="md3_status_error_container">#FFDAD6</color>
+    <color name="md3_status_error_text">#93000A</color>
+    <color name="md3_status_error_border">#FF897D</color>
+
+    <color name="md3_status_neutral_container">#EAE5EE</color>
+    <color name="md3_status_neutral_text">#48454E</color>
+    <color name="md3_status_neutral_border">#CAC4D0</color>
+
+    <!-- Deprecated fallbacks -->
+    <color name="nomad_primary">#5D38DF</color>
+    <color name="nomad_primary_dark">#4518C6</color>
+    <color name="nomad_background">#FDF7FF</color>
+    <color name="nomad_surface">#FFFFFF</color>
+    <color name="nomad_border">#CAC4D0</color>
+    <color name="nomad_text">#1D1B20</color>
+    <color name="nomad_muted">#48454E</color>
+</resources>

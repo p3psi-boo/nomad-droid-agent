@@ -61,11 +61,26 @@ object GoBridgeServer {
         when (action) {
             "privilege_status" -> return privilegeStatus()
             "termux_status" -> return TermuxManager.statusJson()
-            "termux_start" -> return TermuxManager.start(request)
-            "termux_stop" -> return TermuxManager.stop(request)
+            "termux_start" -> {
+                val taskId = request.getString("task_id")
+                val cmd = request.optString("command", "sh")
+                com.nomad.droid.agent.WorkloadTracker.recordStart(taskId, "Termux Shell", cmd)
+                com.nomad.droid.log.AppLogger.i("TermuxDriver", "Starting task '$taskId' ($cmd)")
+                return TermuxManager.start(request)
+            }
+            "termux_stop" -> {
+                val taskId = request.getString("task_id")
+                com.nomad.droid.agent.WorkloadTracker.recordEnd(taskId, "Stopped")
+                com.nomad.droid.log.AppLogger.i("TermuxDriver", "Stopping task '$taskId'")
+                return TermuxManager.stop(request)
+            }
             "termux_inspect" -> return TermuxManager.inspect(request.getString("task_id"))
             "termux_result" -> return TermuxManager.result(request.getString("task_id"))
-            "termux_destroy" -> return TermuxManager.destroy(request.getString("task_id"))
+            "termux_destroy" -> {
+                val taskId = request.getString("task_id")
+                com.nomad.droid.agent.WorkloadTracker.recordEnd(taskId, "Destroyed")
+                return TermuxManager.destroy(taskId)
+            }
         }
 
         when (request.optString("backend", BACKEND_SHIZUKU)) {
@@ -79,6 +94,7 @@ object GoBridgeServer {
             "capabilities" -> broker.capabilities
             "install_package" -> {
                 val path = request.getString("apk_path")
+                com.nomad.droid.log.AppLogger.i("AndroidDriver", "Installing package APK: $path")
                 ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY).use { apk ->
                     broker.installPackage(
                         apk,
@@ -92,15 +108,25 @@ object GoBridgeServer {
                 request.getString("package"),
                 request.getString("component"),
             )
-            "start_service" -> broker.startService(
-                request.getString("package"),
-                request.getString("component"),
-            )
-            "stop_service" -> broker.stopService(
-                request.getString("package"),
-                request.getString("component"),
-            )
-            "force_stop" -> broker.forceStopPackage(request.getString("package"))
+            "start_service" -> {
+                val pkg = request.getString("package")
+                val comp = request.getString("component")
+                com.nomad.droid.agent.WorkloadTracker.recordStart("$pkg/$comp", "Android Service", "$pkg$comp")
+                com.nomad.droid.log.AppLogger.ok("AndroidDriver", "Started Android service $pkg$comp")
+                broker.startService(pkg, comp)
+            }
+            "stop_service" -> {
+                val pkg = request.getString("package")
+                val comp = request.getString("component")
+                com.nomad.droid.agent.WorkloadTracker.recordEnd("$pkg/$comp", "Stopped")
+                com.nomad.droid.log.AppLogger.i("AndroidDriver", "Stopped Android service $pkg$comp")
+                broker.stopService(pkg, comp)
+            }
+            "force_stop" -> {
+                val pkg = request.getString("package")
+                com.nomad.droid.log.AppLogger.i("AndroidDriver", "Force stopped package $pkg")
+                broker.forceStopPackage(pkg)
+            }
             else -> return failure("Unsupported bridge action: $action")
         }
         return result.toJson()
