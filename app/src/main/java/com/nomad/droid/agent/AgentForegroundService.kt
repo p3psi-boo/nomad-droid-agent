@@ -26,7 +26,15 @@ class AgentForegroundService : Service() {
         super.onCreate()
         store = AgentConfigStore(this)
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, notification(getString(R.string.agent_notification_connecting)))
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification(getString(R.string.agent_notification_connecting)),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification(getString(R.string.agent_notification_connecting)))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

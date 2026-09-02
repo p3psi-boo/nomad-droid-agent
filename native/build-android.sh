@@ -17,7 +17,7 @@ if [[ -z "$NDK_DIR" ]]; then
 fi
 
 TOOLCHAIN="$NDK_DIR/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-CC="$TOOLCHAIN/aarch64-linux-android31-clang"
+CC="$TOOLCHAIN/aarch64-linux-android29-clang"
 AR="$TOOLCHAIN/llvm-ar"
 
 if [[ ! -x "$CC" || ! -x "$AR" ]]; then
